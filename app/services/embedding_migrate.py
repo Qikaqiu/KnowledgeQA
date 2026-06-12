@@ -35,7 +35,9 @@ async def _reindex_document(workspace_id: str, doc: dict) -> None:
         return
 
     await enrich_chunks(chunk_records)
-    embeddings = embed_texts([record["embed_text"] for record in chunk_records])
+    embeddings = await asyncio.to_thread(
+        embed_texts, [record["embed_text"] for record in chunk_records]
+    )
     vs.vector_store.add_document(
         workspace_id,
         doc["id"],

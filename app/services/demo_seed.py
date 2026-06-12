@@ -4,7 +4,7 @@ from pathlib import Path
 
 from app.config import BASE_DIR
 from app.services.document_parser import SUPPORTED_SUFFIXES
-from app.services.ingest import ingest_file
+from app.services.ingest import ingest_file_sync
 from app.storage import vector_store as vs
 from app.storage.workspaces import get_workspace, list_workspaces
 from datetime import datetime, timezone
@@ -117,7 +117,7 @@ async def seed_from_sample_dirs() -> int:
                 continue
             for doc in matches:
                 await delete_document(ws_id, doc["id"])
-            await ingest_file(ws_id, file_path.name, content)
+            await ingest_file_sync(ws_id, file_path.name, content)
             imported += 1
             documents = vs.load_documents(ws_id)
     return imported

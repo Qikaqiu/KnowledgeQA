@@ -72,10 +72,22 @@ app.add_middleware(
 STATIC_DIR = BASE_DIR / "static"
 
 
+def _ensure_data_dir_writable() -> None:
+    probe = DATA_DIR / ".write_probe"
+    try:
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+    except OSError as exc:
+        raise RuntimeError(
+            f"数据目录不可写: {DATA_DIR}。请挂载持久卷或将 DATA_DIR 指向可写路径。"
+        ) from exc
+
+
 @app.on_event("startup")
 async def startup() -> None:
     for path in (DATA_DIR, UPLOAD_DIR, STATIC_DIR):
         path.mkdir(parents=True, exist_ok=True)
+    _ensure_data_dir_writable()
     ensure_seed_workspaces()
     from app.services.embedding_migrate import ensure_embedding_index
 
@@ -203,9 +215,14 @@ async def api_upload_document(workspace_id: str, file: UploadFile = File(...)):
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    if meta.get("status") == "processing":
+        message = "文件已接收，正在后台解析与向量化，请稍候刷新列表"
+    else:
+        message = f"已入库 {meta['chunk_count']} 个片段（含章节路径与 AI 摘要）"
+
     return UploadResponse(
         document=DocumentInfo(**meta),
-        message=f"已入库 {meta['chunk_count']} 个片段（含章节路径与 AI 摘要）",
+        message=message,
     )
 
 

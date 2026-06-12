@@ -112,11 +112,13 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 ### 通用注意事项
 
-1. 生产环境去掉 `--reload`，前置 Nginx 做 HTTPS
-2. 定期备份 `data/` 目录（向量库与上传文件）
-3. `.env` 仅在服务器配置，**不要提交 Git**
-4. 公开站点设置 `ALLOW_ENV_KEY_WRITE=false`、`USE_SERVER_API_KEY=false`
-5. 首次启动会下载 BGE 模型，需预留磁盘与内存
+1. **必须挂载持久卷到 `data/`**（或整个 `/app/data`），否则重启后上传文件与向量库会丢失
+2. 生产环境去掉 `--reload`，前置 Nginx 做 HTTPS
+3. 定期备份 `data/` 目录（向量库与上传文件）
+4. `.env` 仅在服务器配置，**不要提交 Git**
+5. 公开站点设置 `ALLOW_ENV_KEY_WRITE=false`、`USE_SERVER_API_KEY=false`
+6. 首次启动会下载 BGE 模型，需预留磁盘与内存；上传后会在后台向量化，列表显示「处理中」属正常
+7. 建议设置 `INGEST_ENABLE_SUMMARY=false` 加快上传
 
 ## 技术栈
 

@@ -28,6 +28,8 @@ class DocumentInfo(BaseModel):
     size: int
     uploaded_at: str
     chunk_count: int
+    status: Literal["processing", "ready", "error"] = "ready"
+    error_message: str = ""
 
 
 class ChatRequest(BaseModel):

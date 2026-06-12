@@ -39,6 +39,7 @@ RERANK_TOP_K = 6
 TOP_K = RERANK_TOP_K
 MIN_RELEVANCE_SCORE = 0.38
 DEMO_MIN_RELEVANCE_SCORE = 0.28
+INGEST_ENABLE_SUMMARY = True
 
 
 def reload_config() -> None:
@@ -46,7 +47,7 @@ def reload_config() -> None:
     global DEMO_API_KEY, DEMO_BASE_URL, DEMO_MODEL
     global DEMO_DAILY_LIMIT, DEMO_PER_MINUTE_LIMIT, DEMO_MAX_CHARS, DEMO_DELAY_SECONDS
     global OLLAMA_BASE_URL, OLLAMA_MODEL, EMBEDDING_MODEL, EMBEDDING_QUERY_INSTRUCTION
-    global ALLOW_ENV_KEY_WRITE, USE_SERVER_API_KEY
+    global ALLOW_ENV_KEY_WRITE, USE_SERVER_API_KEY, INGEST_ENABLE_SUMMARY
 
     load_dotenv(ENV_FILE, override=True)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
@@ -72,6 +73,11 @@ def reload_config() -> None:
         "yes",
     }
     USE_SERVER_API_KEY = os.getenv("USE_SERVER_API_KEY", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+    INGEST_ENABLE_SUMMARY = os.getenv("INGEST_ENABLE_SUMMARY", "true").lower() in {
         "1",
         "true",
         "yes",

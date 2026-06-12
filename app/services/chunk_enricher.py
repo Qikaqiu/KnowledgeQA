@@ -7,6 +7,7 @@ from app.config import (
     DEMO_API_KEY,
     DEMO_BASE_URL,
     DEMO_MODEL,
+    INGEST_ENABLE_SUMMARY,
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
     OPENAI_MODEL,
@@ -38,7 +39,7 @@ async def enrich_chunks(chunks: list[dict]) -> None:
     """为每个片段生成摘要并构造用于向量化的文本。"""
     if not chunks:
         return
-    if not _ingest_credentials()[0]:
+    if not INGEST_ENABLE_SUMMARY or not _ingest_credentials()[0]:
         for chunk in chunks:
             chunk["summary"] = ""
             chunk["embed_text"] = build_embed_text(

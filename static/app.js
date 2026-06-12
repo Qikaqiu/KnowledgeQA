@@ -1034,11 +1034,38 @@ function renderDocuments(docs) {
     nameBtn.className = "project-name";
     nameBtn.textContent = doc.filename;
     nameBtn.title = "查看片段";
-    nameBtn.onclick = () => openDocumentChunks(doc.id, doc.filename);
+    nameBtn.onclick = () => {
+      if (doc.status === "processing") {
+        showConfirm({
+          title: "处理中",
+          message: "文档正在后台解析与向量化，请稍候再查看片段。",
+          confirmText: "知道了",
+          alertOnly: true,
+        });
+        return;
+      }
+      if (doc.status === "error") {
+        showConfirm({
+          title: "入库失败",
+          message: doc.error_message || "文档未能成功入库，请删除后重新上传。",
+          confirmText: "知道了",
+          alertOnly: true,
+        });
+        return;
+      }
+      openDocumentChunks(doc.id, doc.filename);
+    };
 
     const meta = document.createElement("div");
     meta.className = "project-meta";
-    meta.textContent = `${formatSize(doc.size)} · ${doc.chunk_count} 片段`;
+    if (doc.status === "processing") {
+      meta.textContent = `${formatSize(doc.size)} · 处理中…`;
+    } else if (doc.status === "error") {
+      meta.textContent = `${formatSize(doc.size)} · 入库失败`;
+      meta.title = doc.error_message || "入库失败";
+    } else {
+      meta.textContent = `${formatSize(doc.size)} · ${doc.chunk_count} 片段`;
+    }
 
     body.appendChild(nameBtn);
     body.appendChild(meta);
@@ -1409,13 +1436,32 @@ async function selectWorkspace(id) {
   updateModeUI();
 }
 
-async function loadDocuments() {
+let documentPollTimer = null;
+
+function scheduleDocumentPoll() {
+  if (documentPollTimer) return;
+  documentPollTimer = setInterval(async () => {
+    if (!state.currentId) return;
+    const hasProcessing = state.documents.some((doc) => doc.status === "processing");
+    if (!hasProcessing) {
+      clearInterval(documentPollTimer);
+      documentPollTimer = null;
+      return;
+    }
+    await loadDocuments({ silent: true });
+  }, 2500);
+}
+
+async function loadDocuments(options = {}) {
   const resp = await api(`/api/workspaces/${state.currentId}/documents`);
   const docs = await resp.json();
   renderDocuments(docs);
   const ws = state.workspaces.find((w) => w.id === state.currentId);
   if (ws) ws.document_count = docs.length;
   renderWorkspaces();
+  if (docs.some((doc) => doc.status === "processing")) {
+    scheduleDocumentPoll();
+  }
 }
 
 function isAcceptedFile(file) {
@@ -1533,7 +1579,16 @@ function uploadFileWithProgress(file, onProgress) {
 
     xhr.addEventListener("error", () => {
       clearProcessingTimer();
-      reject(new Error("网络错误"));
+      reject(
+        new Error(
+          "网络错误或请求超时。若文件较大，请稍后查看文档列表是否仍在处理；部署环境需挂载 data 持久卷。"
+        )
+      );
+    });
+
+    xhr.addEventListener("timeout", () => {
+      clearProcessingTimer();
+      reject(new Error("上传超时，文件可能仍在后台处理，请稍后刷新文档列表"));
     });
 
     xhr.addEventListener("abort", () => {
@@ -1542,6 +1597,7 @@ function uploadFileWithProgress(file, onProgress) {
     });
 
     xhr.open("POST", `/api/workspaces/${state.currentId}/documents`);
+    xhr.timeout = 600000;
     onProgress({ status: "uploading", percent: 1 });
     xhr.send(form);
   });

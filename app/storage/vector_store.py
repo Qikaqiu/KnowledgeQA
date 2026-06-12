@@ -303,6 +303,19 @@ def add_document_meta(workspace_id: str, meta: dict) -> None:
   save_documents(workspace_id, docs)
 
 
+def update_document_meta(workspace_id: str, document_id: str, patch: dict) -> dict | None:
+  docs = load_documents(workspace_id)
+  updated = None
+  for doc in docs:
+    if doc["id"] == document_id:
+      doc.update(patch)
+      updated = doc
+      break
+  if updated:
+    save_documents(workspace_id, docs)
+  return updated
+
+
 def remove_document_meta(workspace_id: str, document_id: str) -> dict | None:
   docs = load_documents(workspace_id)
   kept: list[dict] = []
