@@ -4,7 +4,7 @@ const USER_LLM_STORAGE_KEY = "knowledgeqa_user_llm_v1";
 const SESSION_STORAGE_KEY = "knowledgeqa_session_v1";
 const WELCOME_SEEN_KEY = "knowledgeqa_welcome_seen_v1";
 const RETRIEVAL_NOTICE_DISMISSED_KEY = "knowledgeqa_retrieval_notice_dismissed_v1";
-const DEFAULT_BRAND_ICON = "/static/assets/logo_white.png";
+const DEFAULT_BRAND_ICON = "/static/assets/logo.png";
 const MAX_BRAND_ICON_BYTES = 256 * 1024;
 
 const state = {
