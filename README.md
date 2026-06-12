@@ -83,9 +83,7 @@ Windows 也可直接运行 `run.bat`。
 
 ## 部署提示
 
-> **不要部署到 Vercel。** 本项目依赖 PyTorch + FlagEmbedding + ChromaDB，安装后约 **5GB+**，超过 [Vercel Python 函数 500MB 存储上限](https://vercel.com/docs/functions/runtimes/python#controlling-what-gets-bundled)。Vercel 适合静态站 / 轻量 Serverless，不适合本地向量库 + 嵌入模型这类应用。
-
-推荐平台（支持持久磁盘或容器）：
+本项目需要持久磁盘存放向量库与上传文件，建议使用支持容器或持久存储的平台部署。
 
 | 平台 | 说明 |
 |------|------|
