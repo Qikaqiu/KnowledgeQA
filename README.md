@@ -83,10 +83,42 @@ Windows 也可直接运行 `run.bat`。
 
 ## 部署提示
 
+> **不要部署到 Vercel。** 本项目依赖 PyTorch + FlagEmbedding + ChromaDB，安装后约 **5GB+**，超过 [Vercel Python 函数 500MB 存储上限](https://vercel.com/docs/functions/runtimes/python#controlling-what-gets-bundled)。Vercel 适合静态站 / 轻量 Serverless，不适合本地向量库 + 嵌入模型这类应用。
+
+推荐平台（支持持久磁盘或容器）：
+
+| 平台 | 说明 |
+|------|------|
+| [Railway](https://railway.app/) | 连 GitHub 一键部署，配置环境变量即可 |
+| [Render](https://render.com/) | Web Service + 持久盘 |
+| 云服务器 VPS | 阿里云 / 腾讯云 / DigitalOcean，直接 `run.bat` 或 Docker |
+| [Fly.io](https://fly.io/) | 容器部署，可挂载 Volume |
+
+### Docker（推荐）
+
+```bash
+docker build -t knowledgeqa .
+docker run -p 8000:8000 --env-file .env -v knowledgeqa-data:/app/data knowledgeqa
+```
+
+### VPS 直跑
+
+```bash
+git clone https://github.com/Qikaqiu/KnowledgeQA.git
+cd KnowledgeQA
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env   # 填入 DEMO_API_KEY 等
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+### 通用注意事项
+
 1. 生产环境去掉 `--reload`，前置 Nginx 做 HTTPS
-2. 定期备份 `data/` 目录
-3. `.env` 仅在服务器本地维护，通过 SCP / 密钥管理服务单独上传
+2. 定期备份 `data/` 目录（向量库与上传文件）
+3. `.env` 仅在服务器配置，**不要提交 Git**
 4. 公开站点设置 `ALLOW_ENV_KEY_WRITE=false`、`USE_SERVER_API_KEY=false`
+5. 首次启动会下载 BGE 模型，需预留磁盘与内存
 
 ## 技术栈
 
