@@ -1360,7 +1360,8 @@ function renderDemoPrompts() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "demo-prompt-btn";
-    btn.innerHTML = `<span class="prompt-ws">${escapeHtml(wsName)}</span> · ${escapeHtml(prompt.label || prompt.question)}`;
+    const label = prompt.label || prompt.question;
+    btn.textContent = label;
     btn.title = `${wsName}：${prompt.question}`;
     btn.onclick = () => applyDemoPrompt(prompt);
     demoPromptsList.appendChild(btn);
