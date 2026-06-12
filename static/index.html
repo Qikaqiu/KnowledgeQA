@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>私人知识问答库</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <button type="button" id="brand-icon-btn" class="brand-mark has-icon" title="上传图标">
+          <img id="brand-icon-img" class="brand-icon-img" src="/static/assets/logo.png" alt="知识库" />
+          <span id="brand-icon-fallback" hidden>KB</span>
+        </button>
+        <span id="brand-name" class="brand-name" title="点击编辑名称">知识库</span>
+        <input id="brand-name-input" class="brand-name-input" type="text" maxlength="20" hidden />
+        <input id="brand-icon-input" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" hidden />
+      </div>
+
+      <section class="sidebar-section">
+        <div class="section-head">
+          <span class="section-label">资料库</span>
+          <button id="add-workspace-btn" type="button" class="section-add-btn" title="新建资料库">+</button>
+        </div>
+        <div id="workspace-list" class="workspace-list"></div>
+      </section>
+
+      <section class="sidebar-section sidebar-projects">
+        <div class="section-head">
+          <span class="section-label">项目</span>
+          <button id="upload-open-btn" type="button" class="section-add-btn" title="上传文档">+</button>
+        </div>
+        <ul id="document-list" class="project-list"></ul>
+      </section>
+
+      <div class="sidebar-spacer"></div>
+
+      <footer class="sidebar-footer">
+        <button id="llm-mode" type="button" class="sidebar-footer-btn" title="配置模型">
+          <span class="footer-btn-icon" aria-hidden="true">⚙</span>
+          <span class="footer-btn-label">AI配置</span>
+        </button>
+      </footer>
+    </aside>
+
+    <main class="main">
+      <header class="main-header">
+        <div class="main-header-left">
+          <span id="current-workspace-name" class="workspace-pill">选择资料库</span>
+          <span id="mode-badge" class="mode-badge" hidden>演示模式</span>
+        </div>
+        <div class="main-header-actions">
+          <button id="retrieve-preview-btn" type="button" class="text-btn">检索预览</button>
+          <button id="clear-chat-btn" type="button" class="text-btn">清空对话</button>
+        </div>
+      </header>
+
+      <section id="chat-panel" class="chat-panel chat-empty">
+        <div class="chat-hero">
+          <p class="hero-eyebrow">KNOWLEDGE Q&amp;A</p>
+          <h1 id="hero-title" class="hero-title">我们应该了解什么？</h1>
+          <p id="current-workspace-desc" class="hero-sub muted"></p>
+        </div>
+
+        <div class="chat-stage">
+          <div id="chat-log" class="chat-log"></div>
+
+          <div id="demo-prompts" class="demo-prompts" hidden>
+            <span class="demo-prompts-label">试试这些问题：</span>
+            <div id="demo-prompts-list" class="demo-prompts-list"></div>
+          </div>
+
+          <div id="demo-quota-bar" class="demo-quota-bar" hidden>
+            <span>您今日还可试用 <strong id="demo-quota-left">0</strong> 次</span>
+            <button type="button" id="demo-upgrade-btn" class="text-btn inline-upgrade-btn">配置 API Key 解锁完整功能</button>
+          </div>
+
+          <form id="chat-form" class="chat-form">
+            <div class="composer-card">
+              <div class="chat-input-wrap">
+                <div id="scope-chips" class="scope-chips" hidden></div>
+                <ul id="mention-picker" class="mention-picker" hidden></ul>
+                <textarea
+                  id="chat-input"
+                  rows="1"
+                  placeholder="输入内容，@ 可指定文档"
+                  required
+                ></textarea>
+              </div>
+              <button type="submit" class="composer-send" title="发送" aria-label="发送">↑</button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="upload-dialog" class="settings-dialog upload-dialog">
+    <div class="upload-dialog-inner">
+      <div class="dialog-head">
+        <h3>上传文档</h3>
+        <button type="button" id="upload-dialog-close" class="ghost-btn">关闭</button>
+      </div>
+      <p class="muted dialog-hint">支持 TXT、Markdown、PDF、Word、PPT、Excel 等，单文件不超过 20MB</p>
+      <div id="upload-dropzone" class="upload-dropzone" tabindex="0">
+        <input
+          id="file-input"
+          type="file"
+          accept=".txt,.md,.markdown,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.html,.htm,.csv,.json,.xml"
+          multiple
+          hidden
+        />
+        <div class="upload-dropzone-text">
+          <strong>拖拽文件到此处</strong>
+          <span>或点击选择，可多选</span>
+        </div>
+      </div>
+      <ul id="upload-queue" class="upload-queue"></ul>
+      <div id="upload-summary" class="upload-summary muted" hidden></div>
+    </div>
+  </dialog>
+
+  <dialog id="workspace-dialog" class="settings-dialog">
+    <form id="workspace-form" method="dialog">
+      <div class="dialog-head">
+        <h3 id="workspace-dialog-title">新建资料库</h3>
+        <button type="button" id="workspace-dialog-close" class="ghost-btn">关闭</button>
+      </div>
+      <label class="field">
+        <span>名称</span>
+        <input id="ws-name-input" type="text" maxlength="80" required placeholder="例如：项目文档" />
+      </label>
+      <label class="field">
+        <span>描述（可选）</span>
+        <input id="ws-desc-input" type="text" maxlength="300" placeholder="简要说明资料库用途" />
+      </label>
+      <div class="dialog-actions dialog-actions-end">
+        <button type="submit" class="primary-btn">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="chunks-dialog" class="chunks-dialog">
+    <div class="chunks-dialog-inner">
+      <div class="dialog-head chunks-dialog-head">
+        <div class="dialog-title-wrap">
+          <h3 id="chunks-dialog-title">文本片段</h3>
+          <p id="chunks-dialog-hint" class="muted dialog-hint"></p>
+        </div>
+        <button type="button" id="chunks-close" class="dialog-close-btn" aria-label="关闭">✕</button>
+      </div>
+      <div id="chunks-list" class="chunks-list"></div>
+    </div>
+  </dialog>
+
+  <dialog id="welcome-dialog" class="settings-dialog welcome-dialog">
+    <div class="welcome-dialog-inner">
+      <p class="hero-eyebrow">欢迎使用</p>
+      <h3>私人知识问答库</h3>
+      <p class="muted welcome-lead">两种使用方式，按需选择：</p>
+      <div class="welcome-cards">
+        <div class="welcome-card">
+          <h4>演示模式</h4>
+          <ul class="welcome-list muted">
+            <li>免费试用，无需 API Key</li>
+            <li>每日 10 次提问，单次 500 字以内</li>
+            <li>响应稍慢，不保存对话历史</li>
+          </ul>
+          <button type="button" id="welcome-try-demo" class="primary-btn">立即免费试用</button>
+        </div>
+        <div class="welcome-card welcome-card-highlight">
+          <h4>完整模式</h4>
+          <ul class="welcome-list muted">
+            <li>使用你自己的 API Key</li>
+            <li>无次数限制，完整 AI 回答与重排</li>
+            <li>Key 仅保存在本机浏览器</li>
+          </ul>
+          <button type="button" id="welcome-config-key" class="ghost-btn">配置我的 API Key</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="settings-dialog" class="settings-dialog">
+    <form id="settings-form" method="dialog">
+      <div class="dialog-head">
+        <h3>配置 API Key</h3>
+        <button type="button" id="settings-close" class="ghost-btn">关闭</button>
+      </div>
+      <p class="muted dialog-hint">支持 OpenAI 兼容 API（DeepSeek、OpenAI 等）。<strong>API Key 仅保存在你的浏览器本地</strong>，不会上传到公开仓库。</p>
+
+      <div class="settings-guide muted">
+        <p>获取 API Key：</p>
+        <ul class="guide-links">
+          <li><a href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">DeepSeek API Key 管理</a></li>
+          <li><a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener">OpenAI API Key 管理</a></li>
+        </ul>
+      </div>
+
+      <label class="field">
+        <span>API Key</span>
+        <input id="cfg-api-key" type="password" autocomplete="off" placeholder="sk-..." />
+        <small id="cfg-api-key-hint" class="muted"></small>
+      </label>
+
+      <label class="field">
+        <span>API Base URL</span>
+        <input id="cfg-base-url" type="url" placeholder="https://api.deepseek.com/v1" />
+      </label>
+
+      <label class="field">
+        <span>模型名称</span>
+        <input id="cfg-model" type="text" placeholder="deepseek-chat" />
+      </label>
+
+      <details class="advanced" id="settings-ollama-section">
+        <summary>Ollama（本地可选）</summary>
+        <label class="field">
+          <span>Ollama 地址</span>
+          <input id="cfg-ollama-url" type="url" placeholder="http://127.0.0.1:11434" />
+        </label>
+        <label class="field">
+          <span>Ollama 模型</span>
+          <input id="cfg-ollama-model" type="text" placeholder="llama3.2" />
+        </label>
+      </details>
+
+      <div class="dialog-actions">
+        <button type="button" id="cfg-validate-key" class="ghost-btn">验证 Key</button>
+        <button type="button" id="cfg-clear-key" class="ghost-btn danger-text">清除 Key</button>
+        <button type="submit" class="primary-btn">保存到本机</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="settings-dialog confirm-dialog">
+    <div class="confirm-dialog-inner">
+      <h3 id="confirm-dialog-title">确认</h3>
+      <p id="confirm-dialog-message" class="confirm-dialog-message"></p>
+      <div class="confirm-dialog-actions">
+        <button type="button" id="confirm-dialog-cancel" class="ghost-btn">取消</button>
+        <button type="button" id="confirm-dialog-ok" class="primary-btn">确定</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>
