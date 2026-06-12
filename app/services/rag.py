@@ -1,13 +1,25 @@
 from collections.abc import AsyncIterator
 
-from app.config import DEMO_MIN_RELEVANCE_SCORE, MIN_RELEVANCE_SCORE, RECALL_TOP_K
+from app.config import (
+    DEMO_KEYWORD_MIN_RELEVANCE_SCORE,
+    DEMO_MIN_RELEVANCE_SCORE,
+    KEYWORD_MIN_RELEVANCE_SCORE,
+    MIN_RELEVANCE_SCORE,
+    RECALL_TOP_K,
+)
 from app.services.app_mode import TIER_DEMO
 from app.models import SourceChunk
 from app.services.embedder import embed_query, is_keyword_backend
 from app.services import llm
 from app.services.app_mode import ResolvedMode
 from app.services.reranker import rerank_hits
-from app.services.relevance import combined_score, keyword_overlap_score, relevance_label, semantic_score_from_distance
+from app.services.relevance import (
+    combined_score,
+    keyword_overlap_score,
+    keyword_retrieval_score,
+    relevance_label,
+    semantic_score_from_distance,
+)
 from app.storage.vector_store import vector_store
 
 UNKNOWN_ANSWER_TEMPLATE = (
@@ -18,6 +30,10 @@ UNKNOWN_ANSWER_TEMPLATE = (
 
 
 def _min_relevance_score(tier: str | None = None) -> float:
+    if is_keyword_backend():
+        if tier == TIER_DEMO:
+            return DEMO_KEYWORD_MIN_RELEVANCE_SCORE
+        return KEYWORD_MIN_RELEVANCE_SCORE
     if tier == TIER_DEMO:
         return DEMO_MIN_RELEVANCE_SCORE
     return MIN_RELEVANCE_SCORE
@@ -68,21 +84,19 @@ def _merge_raw_hits(batches: list[list[dict]]) -> list[dict]:
 
 
 def _annotate_keyword_hits(question: str, raw_hits: list[dict]) -> list[dict]:
+    min_score = KEYWORD_MIN_RELEVANCE_SCORE
     hits: list[dict] = []
     for hit in raw_hits:
+        text = f"{hit.get('heading_path', '')} {hit.get('summary', '')} {hit['snippet']}"
         keyword = hit.get("keyword_score")
         if keyword is None:
-            keyword = keyword_overlap_score(
-                question,
-                f"{hit.get('heading_path', '')} {hit.get('summary', '')} {hit['snippet']}",
-            )
-        final = combined_score(0.0, keyword)
+            keyword = keyword_retrieval_score(question, text)
         hit = dict(hit)
         hit["semantic_score"] = 0.0
         hit["keyword_score"] = round(keyword, 4)
-        hit["vector_score"] = final
-        hit["score"] = final
-        hit["relevance"] = relevance_label(final, MIN_RELEVANCE_SCORE)
+        hit["vector_score"] = keyword
+        hit["score"] = keyword
+        hit["relevance"] = relevance_label(keyword, min_score)
         hits.append(hit)
     return sorted(hits, key=lambda h: h["score"], reverse=True)
 
@@ -147,9 +161,10 @@ def is_relevant(hits: list[dict], tier: str | None = None) -> bool:
         return False
     min_score = _min_relevance_score(tier)
     top = hits[0]
-    if top["score"] >= min_score:
+    score = top.get("keyword_score", top["score"]) if is_keyword_backend() else top["score"]
+    if score >= min_score:
         return True
-    if tier == TIER_DEMO and top.get("keyword_score", 0) >= 0.34:
+    if tier == TIER_DEMO and not is_keyword_backend() and top.get("keyword_score", 0) >= 0.34:
         return True
     return False
 

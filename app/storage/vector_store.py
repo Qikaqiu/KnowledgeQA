@@ -256,7 +256,7 @@ class VectorStore:
     top_k: int = RECALL_TOP_K,
     document_ids: list[str] | None = None,
   ) -> list[dict]:
-    from app.services.relevance import keyword_overlap_score
+    from app.services.relevance import keyword_retrieval_score
 
     collection = self._collection(workspace_id)
     if collection.count() == 0:
@@ -273,7 +273,7 @@ class VectorStore:
     metadatas = result.get("metadatas") or []
     for doc, meta in zip(documents, metadatas):
       text = f"{meta.get('heading_path', '')} {meta.get('summary', '')} {doc}"
-      keyword = keyword_overlap_score(question, text.lower())
+      keyword = keyword_retrieval_score(question, text)
       hits.append(
         {
           "document": meta.get("filename", "unknown"),

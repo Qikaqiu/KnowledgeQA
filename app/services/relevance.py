@@ -75,6 +75,20 @@ def _chinese_ngram_score(core: str, text: str) -> float:
     return best
 
 
+def _chinese_bigrams(text: str) -> set[str]:
+    chars = [ch for ch in text if "\u4e00" <= ch <= "\u9fff"]
+    if len(chars) < 2:
+        return set(chars)
+    return {chars[i] + chars[i + 1] for i in range(len(chars) - 1)}
+
+
+def _char_coverage(core: str, text: str) -> float:
+    if not core:
+        return 0.0
+    matched = sum(1 for ch in core if ch in text)
+    return matched / len(core)
+
+
 def keyword_overlap_score(query: str, text: str) -> float:
     """中文/英文关键词重合度，弥补纯向量模型对中文问法不敏感的问题。"""
     query = _normalize_query(query)
@@ -87,6 +101,7 @@ def keyword_overlap_score(query: str, text: str) -> float:
     core = _chinese_core(query)
     if len(core) >= 2:
         scores.append(_chinese_ngram_score(core, text))
+        scores.append(_char_coverage(core, text))
 
     for run in re.findall(r"[\u4e00-\u9fff]{2,}", query):
         run_core = "".join(ch for ch in run if ch not in _CHINESE_FILLER_CHARS)
@@ -98,9 +113,20 @@ def keyword_overlap_score(query: str, text: str) -> float:
         matched = sum(1 for token in english if token in text)
         scores.append(matched / len(english))
 
+    q_bigrams = _chinese_bigrams(query)
+    t_bigrams = _chinese_bigrams(text)
+    if q_bigrams and t_bigrams:
+        union = q_bigrams | t_bigrams
+        scores.append(len(q_bigrams & t_bigrams) / len(union))
+
     if not scores:
         return 0.0
     return round(max(scores), 4)
+
+
+def keyword_retrieval_score(query: str, text: str) -> float:
+    """关键词专用检索分：用于 EMBEDDING_BACKEND=keyword，不混入向量语义权重。"""
+    return keyword_overlap_score(query, text)
 
 
 def combined_score(semantic: float, keyword: float) -> float:
