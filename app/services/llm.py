@@ -195,6 +195,20 @@ async def complete_answer(
     return "".join(parts), mode
 
 
+def _openai_failure_message(
+    exc: Exception, credentials: LLMCredentials | None
+) -> str:
+    status = getattr(getattr(exc, "response", None), "status_code", None)
+    if credentials and credentials.source == "user" and status in (401, 403):
+        return (
+            "API Key 无效或已过期，无法调用大模型。请打开「AI 配置」重新验证 Key，"
+            "或点击「清除 Key」回到演示模式。"
+        )
+    if status:
+        return f"模型调用失败（HTTP {status}）。请检查 Key、Base URL 与模型名称。"
+    return f"模型调用失败：{exc}"
+
+
 async def stream_answer(
     question: str,
     sources: list[dict],
@@ -210,12 +224,19 @@ async def stream_answer(
     if tier == TIER_DEMO and DEMO_DELAY_SECONDS > 0:
         await asyncio.sleep(DEMO_DELAY_SECONDS)
 
-    if mode == "openai":
-        async for token in stream_openai(question, sources, scope_document, credentials):
-            yield token
-    else:
-        async for token in stream_ollama(question, sources, scope_document):
-            yield token
+    try:
+        if mode == "openai":
+            async for token in stream_openai(
+                question, sources, scope_document, credentials
+            ):
+                yield token
+        else:
+            async for token in stream_ollama(question, sources, scope_document):
+                yield token
+    except httpx.HTTPError as exc:
+        yield _openai_failure_message(exc, credentials)
+    except Exception as exc:
+        yield _openai_failure_message(exc, credentials)
 
 
 async def validate_api_key(api_key: str, base_url: str, model: str) -> tuple[bool, str]:

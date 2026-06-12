@@ -100,7 +100,10 @@ async def _background_startup() -> None:
         from app.services.embedding_migrate import ensure_embedding_index
         from app.services.embedder import embed_texts
 
+        from app.services.ingest import recover_processing_documents
+
         await ensure_embedding_index()
+        await recover_processing_documents()
         await seed_sample_documents()
         await asyncio.to_thread(embed_texts, ["预热"])
         logger.info("Background startup complete")
@@ -139,6 +142,7 @@ def health(request: Request):
 @app.get("/api/mode", response_model=ModeInfo)
 def api_mode(request: Request):
     info = mode_info(request)
+    info["startup_ready"] = _startup_ready
     if info["tier"] == "demo" or info.get("demo_available"):
         info["demo_catalog"] = get_demo_catalog()
     return ModeInfo(**info)
@@ -378,9 +382,14 @@ async def api_chat_stream(workspace_id: str, body: ChatRequest, request: Request
             "demo_remaining": resolved.demo_remaining,
         }
         yield f"data: {json.dumps(meta, ensure_ascii=False)}\n\n"
-        async for token in token_stream:
-            payload = {"type": "token", "content": token}
-            yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        try:
+            async for token in token_stream:
+                payload = {"type": "token", "content": token}
+                yield f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        except Exception as exc:
+            logger.exception("Chat stream failed")
+            err = {"type": "token", "content": f"\n\n出错了：{exc}"}
+            yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n"
         yield "data: {\"type\": \"done\"}\n\n"
 
     return StreamingResponse(

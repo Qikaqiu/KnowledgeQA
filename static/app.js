@@ -327,8 +327,11 @@ async function api(path, options = {}) {
     let detail = resp.statusText;
     try {
       const data = await resp.json();
-      detail = data.detail || JSON.stringify(data);
+      detail = data.detail || data.message || JSON.stringify(data);
     } catch (_) {}
+    if (resp.status === 502) {
+      detail = "服务暂时无响应（502），可能正在加载模型或内存不足，请稍后刷新";
+    }
     throw new Error(detail);
   }
   return resp;
@@ -1126,8 +1129,15 @@ function updateModeUI() {
   const footerLabel = llmMode.querySelector(".footer-btn-label");
   if (footerLabel) {
     if (info.tier === "full") footerLabel.textContent = "完整模式";
-    else if (info.tier === "demo") footerLabel.textContent = "演示模式";
-    else footerLabel.textContent = "AI配置";
+    else if (info.tier === "demo") {
+      footerLabel.textContent = quota
+        ? `演示模式 · 余${quota.remaining}次`
+        : "演示模式";
+    } else if (info.tier === "retrieval" && info.demo_available) {
+      footerLabel.textContent = quota
+        ? `检索模式 · 可试用${quota.remaining}次`
+        : "检索模式";
+    } else footerLabel.textContent = "检索模式";
   }
 
   if (modeBadge) {
@@ -1147,13 +1157,24 @@ function updateModeUI() {
   }
 
   const quota = info.demo_quota;
-  const showQuota = info.tier === "demo" && !!quota;
+  const showQuota =
+    !!quota &&
+    !info.has_user_api_key &&
+    (info.tier === "demo" ||
+      (info.tier === "retrieval" && info.demo_available));
   if (demoQuotaBar) {
     demoQuotaBar.hidden = !showQuota;
     demoQuotaBar.style.display = showQuota ? "" : "none";
   }
   if (demoQuotaLeft && showQuota) {
     demoQuotaLeft.textContent = String(quota.remaining);
+  }
+
+  if (info.startup_ready === false) {
+    chatInput.placeholder = "系统正在加载嵌入模型，请稍候再提问或上传…";
+    if (uploadOpenBtn) uploadOpenBtn.disabled = true;
+  } else if (uploadOpenBtn) {
+    uploadOpenBtn.disabled = false;
   }
 
   const canPreview = info.features?.retrieve_preview !== false;
@@ -1339,6 +1360,46 @@ async function saveSettings(event) {
     return;
   }
 
+  cfgValidateKey.disabled = true;
+  cfgValidateKey.textContent = "验证中…";
+  let validated = false;
+  try {
+    const valResp = await fetch("/api/settings/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        base_url: config.baseUrl,
+        model: config.model,
+      }),
+    });
+    const valData = await valResp.json();
+    if (!valData.ok) {
+      cfgApiKeyHint.textContent = valData.message;
+      cfgApiKeyHint.style.color = "var(--danger)";
+      await showConfirm({
+        title: "Key 验证失败",
+        message: valData.message || "请检查 API Key、Base URL 与模型名称",
+        confirmText: "知道了",
+        alertOnly: true,
+      });
+      return;
+    }
+    validated = true;
+  } catch (err) {
+    await showConfirm({
+      title: "验证失败",
+      message: err.message,
+      confirmText: "知道了",
+      alertOnly: true,
+    });
+    return;
+  } finally {
+    cfgValidateKey.disabled = false;
+    cfgValidateKey.textContent = "验证 Key";
+  }
+  if (!validated) return;
+
   saveUserLLM(config);
   localStorage.setItem(WELCOME_SEEN_KEY, "1");
   settingsDialog.close();
@@ -1368,6 +1429,9 @@ async function clearApiKey() {
   cfgApiKeyHint.style.color = "";
   await loadModeInfo();
   updateModeUI();
+  if (state.modeInfo?.tier === "demo") {
+    await setupDemoExperience();
+  }
   await showConfirm({
     title: "已清除",
     message: state.modeInfo?.tier === "demo"
@@ -1376,6 +1440,14 @@ async function clearApiKey() {
     confirmText: "知道了",
     alertOnly: true,
   });
+}
+
+async function ensureDemoExperienceIfNeeded() {
+  if (loadUserLLM().apiKey) return;
+  await loadModeInfo();
+  if (state.modeInfo?.tier === "demo") {
+    await setupDemoExperience();
+  }
 }
 
 function maybeShowWelcome() {
@@ -1453,14 +1525,21 @@ function scheduleDocumentPoll() {
 }
 
 async function loadDocuments(options = {}) {
-  const resp = await api(`/api/workspaces/${state.currentId}/documents`);
-  const docs = await resp.json();
-  renderDocuments(docs);
-  const ws = state.workspaces.find((w) => w.id === state.currentId);
-  if (ws) ws.document_count = docs.length;
-  renderWorkspaces();
-  if (docs.some((doc) => doc.status === "processing")) {
-    scheduleDocumentPoll();
+  if (!state.currentId) return;
+  try {
+    const resp = await api(`/api/workspaces/${state.currentId}/documents`);
+    const docs = await resp.json();
+    renderDocuments(docs);
+    const ws = state.workspaces.find((w) => w.id === state.currentId);
+    if (ws) ws.document_count = docs.length;
+    renderWorkspaces();
+    if (docs.some((doc) => doc.status === "processing")) {
+      scheduleDocumentPoll();
+    }
+  } catch (err) {
+    if (!options.silent) {
+      console.error(err);
+    }
   }
 }
 
@@ -1578,6 +1657,15 @@ async function uploadFileWithProgress(file, onProgress) {
 }
 
 async function openUploadDialog() {
+  if (state.modeInfo?.startup_ready === false) {
+    await showConfirm({
+      title: "系统加载中",
+      message: "嵌入模型仍在加载，请稍候 1～2 分钟后再上传文档。",
+      confirmText: "知道了",
+      alertOnly: true,
+    });
+    return;
+  }
   if (!state.currentId) {
     await showConfirm({
       title: "提示",
@@ -1989,6 +2077,12 @@ welcomeConfigKey.addEventListener("click", () => {
   localStorage.setItem(WELCOME_SEEN_KEY, "1");
   welcomeDialog.close();
   openSettings();
+});
+welcomeDialog.addEventListener("close", () => {
+  ensureDemoExperienceIfNeeded();
+});
+settingsDialog.addEventListener("close", () => {
+  ensureDemoExperienceIfNeeded();
 });
 addWorkspaceBtn.addEventListener("click", () => openWorkspaceDialog("create"));
 workspaceForm.addEventListener("submit", saveWorkspaceDialog);
