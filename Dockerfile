@@ -23,4 +23,4 @@ RUN mkdir -p data/chroma data/uploads data/documents
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --http h11 --timeout-keep-alive 120 --limit-max-requests 10000"]

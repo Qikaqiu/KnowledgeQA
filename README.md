@@ -87,10 +87,19 @@ Windows 也可直接运行 `run.bat`。
 
 | 平台 | 说明 |
 |------|------|
-| [Railway](https://railway.app/) | 连 GitHub 一键部署，配置环境变量即可 |
+| [Railway](https://railway.app/) | 连 GitHub 部署，**必须挂载 Volume 到 `/app/data`**，建议内存 ≥ 2GB |
 | [Render](https://render.com/) | Web Service + 持久盘 |
 | 云服务器 VPS | 阿里云 / 腾讯云 / DigitalOcean，直接 `run.bat` 或 Docker |
 | [Fly.io](https://fly.io/) | 容器部署，可挂载 Volume |
+
+### Railway 简要步骤
+
+1. New Project → Deploy from GitHub → 选择本仓库  
+2. **Variables**：粘贴 `.env` 内容（含 `DEMO_API_KEY`、`INGEST_ENABLE_SUMMARY=false`）  
+3. **Volumes** → Add Volume → Mount Path 填 **`/app/data`**，挂载到当前服务  
+4. Settings → 内存建议 **2GB+**（BGE 模型需要）  
+5. 部署完成后访问 `https://xxx.up.railway.app/api/health`，`startup_ready: true` 后再上传  
+6. 上传后文件列表显示「处理中…」属正常，稍等自动刷新  
 
 ### Docker（推荐）
 

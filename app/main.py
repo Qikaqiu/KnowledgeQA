@@ -1,4 +1,6 @@
+import asyncio
 import json
+import logging
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
@@ -50,6 +52,9 @@ from app.storage.workspaces import (
 from app.storage import vector_store as vs
 from app.services import llm
 
+logger = logging.getLogger(__name__)
+_startup_ready = False
+
 
 def _resolve_document_ids(document_id: str | None, document_ids: list[str] | None) -> list[str] | None:
     if document_ids:
@@ -83,22 +88,37 @@ def _ensure_data_dir_writable() -> None:
         ) from exc
 
 
-@app.on_event("startup")
-async def startup() -> None:
-    for path in (DATA_DIR, UPLOAD_DIR, STATIC_DIR):
-        path.mkdir(parents=True, exist_ok=True)
-    _ensure_data_dir_writable()
-    ensure_seed_workspaces()
-    from app.services.embedding_migrate import ensure_embedding_index
-
-    await ensure_embedding_index()
-    await seed_sample_documents()
-
-
 async def seed_sample_documents() -> None:
     from app.services.demo_seed import seed_from_sample_dirs
 
     await seed_from_sample_dirs()
+
+
+async def _background_startup() -> None:
+    global _startup_ready
+    try:
+        from app.services.embedding_migrate import ensure_embedding_index
+        from app.services.embedder import embed_texts
+
+        await ensure_embedding_index()
+        await seed_sample_documents()
+        await asyncio.to_thread(embed_texts, ["预热"])
+        logger.info("Background startup complete")
+    except Exception:
+        logger.exception("Background startup failed")
+    finally:
+        _startup_ready = True
+
+
+@app.on_event("startup")
+async def startup() -> None:
+    global _startup_ready
+    _startup_ready = False
+    for path in (DATA_DIR, UPLOAD_DIR, STATIC_DIR):
+        path.mkdir(parents=True, exist_ok=True)
+    _ensure_data_dir_writable()
+    ensure_seed_workspaces()
+    asyncio.create_task(_background_startup())
 
 
 @app.get("/api/health")
@@ -107,6 +127,7 @@ def health(request: Request):
     mode = mode_info(request)
     return {
         "status": "ok",
+        "startup_ready": _startup_ready,
         "llm_mode": settings["llm_mode"],
         "provider_label": mode["provider_label"],
         "tier": mode["tier"],
@@ -214,6 +235,15 @@ async def api_upload_document(workspace_id: str, file: UploadFile = File(...)):
         meta = await ingest_file(workspace_id, file.filename, content)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except OSError as exc:
+        logger.exception("Upload storage failed for workspace %s", workspace_id)
+        raise HTTPException(
+            status_code=507,
+            detail=f"文件保存失败，请确认已挂载持久卷到 data 目录: {exc}",
+        ) from exc
+    except Exception as exc:
+        logger.exception("Upload failed for workspace %s", workspace_id)
+        raise HTTPException(status_code=500, detail=f"上传处理失败: {exc}") from exc
 
     if meta.get("status") == "processing":
         message = "文件已接收，正在后台解析与向量化，请稍候刷新列表"

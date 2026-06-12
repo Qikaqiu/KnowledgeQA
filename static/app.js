@@ -1522,85 +1522,59 @@ function updateUploadItem(item, patch) {
   renderUploadQueue();
 }
 
-function uploadFileWithProgress(file, onProgress) {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const form = new FormData();
-    form.append("file", file);
-    let processingTimer = null;
+async function uploadFileWithProgress(file, onProgress) {
+  const form = new FormData();
+  form.append("file", file);
+  let processingTimer = null;
 
-    const clearProcessingTimer = () => {
-      if (processingTimer) {
-        clearInterval(processingTimer);
-        processingTimer = null;
-      }
-    };
+  const clearProcessingTimer = () => {
+    if (processingTimer) {
+      clearInterval(processingTimer);
+      processingTimer = null;
+    }
+  };
 
-    const startProcessingAnimation = () => {
-      if (processingTimer) return;
-      let percent = 62;
+  const startProcessingAnimation = () => {
+    if (processingTimer) return;
+    let percent = 62;
+    onProgress({ status: "processing", percent });
+    processingTimer = setInterval(() => {
+      percent = Math.min(percent + 2, 92);
       onProgress({ status: "processing", percent });
-      processingTimer = setInterval(() => {
-        percent = Math.min(percent + 2, 92);
-        onProgress({ status: "processing", percent });
-      }, 450);
-    };
+    }, 450);
+  };
 
-    xhr.upload.addEventListener("progress", (event) => {
-      if (!event.lengthComputable) return;
-      if (event.loaded >= event.total) {
-        startProcessingAnimation();
-        return;
-      }
-      const percent = Math.max(1, Math.round((event.loaded / event.total) * 60));
-      onProgress({ status: "uploading", percent });
+  onProgress({ status: "uploading", percent: 20 });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 600000);
+
+  try {
+    const resp = await fetch(`/api/workspaces/${state.currentId}/documents`, {
+      method: "POST",
+      body: form,
+      signal: controller.signal,
     });
-
-    xhr.addEventListener("load", () => {
-      clearProcessingTimer();
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          const data = JSON.parse(xhr.responseText);
-          onProgress({ status: "done", percent: 100, detail: data.message });
-          resolve(data);
-        } catch (err) {
-          reject(new Error("响应解析失败"));
-        }
-        return;
-      }
-
-      let detail = xhr.statusText || "上传失败";
-      try {
-        const data = JSON.parse(xhr.responseText);
-        detail = data.detail || detail;
-      } catch (_) {}
-      reject(new Error(detail));
-    });
-
-    xhr.addEventListener("error", () => {
-      clearProcessingTimer();
-      reject(
-        new Error(
-          "网络错误或请求超时。若文件较大，请稍后查看文档列表是否仍在处理；部署环境需挂载 data 持久卷。"
-        )
+    startProcessingAnimation();
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+      throw new Error(data.detail || `上传失败 (${resp.status})`);
+    }
+    onProgress({ status: "done", percent: 100, detail: data.message });
+    return data;
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("上传超时，请稍后刷新文档列表查看是否仍在处理");
+    }
+    if (err instanceof TypeError || /failed to fetch|networkerror|http2/i.test(err.message)) {
+      throw new Error(
+        "连接中断 (ERR_HTTP2)。Railway 请挂载 /app/data 持久卷，并等待启动完成后再上传；可先试小 txt 文件。"
       );
-    });
-
-    xhr.addEventListener("timeout", () => {
-      clearProcessingTimer();
-      reject(new Error("上传超时，文件可能仍在后台处理，请稍后刷新文档列表"));
-    });
-
-    xhr.addEventListener("abort", () => {
-      clearProcessingTimer();
-      reject(new Error("已取消"));
-    });
-
-    xhr.open("POST", `/api/workspaces/${state.currentId}/documents`);
-    xhr.timeout = 600000;
-    onProgress({ status: "uploading", percent: 1 });
-    xhr.send(form);
-  });
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+    clearProcessingTimer();
+  }
 }
 
 async function openUploadDialog() {
