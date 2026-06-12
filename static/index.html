@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>私人知识问答库</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,7 +11,8 @@
 </head>
 <body>
   <div class="app">
-    <aside class="sidebar">
+    <div id="sidebar-backdrop" class="sidebar-backdrop" hidden aria-hidden="true"></div>
+    <aside id="sidebar" class="sidebar">
       <div class="sidebar-brand">
         <button type="button" id="brand-icon-btn" class="brand-mark has-icon" title="上传图标">
           <img id="brand-icon-img" class="brand-icon-img" src="/static/assets/logo.png" alt="知识库" />
@@ -41,6 +42,10 @@
       <div class="sidebar-spacer"></div>
 
       <footer class="sidebar-footer">
+        <div class="sidebar-quick-actions mobile-only">
+          <button type="button" id="sidebar-retrieve-preview-btn" class="sidebar-quick-btn">检索预览</button>
+          <button type="button" id="sidebar-clear-chat-btn" class="sidebar-quick-btn">清空对话</button>
+        </div>
         <button id="llm-mode" type="button" class="sidebar-footer-btn" title="配置模型">
           <span class="footer-btn-icon" aria-hidden="true">⚙</span>
           <span class="footer-btn-label">AI配置</span>
@@ -51,18 +56,27 @@
     <main class="main">
       <header class="main-header">
         <div class="main-header-left">
+          <button type="button" id="mobile-menu-btn" class="mobile-menu-btn mobile-only" aria-label="打开菜单">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M4 7h16M4 12h12M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </button>
           <span id="current-workspace-name" class="workspace-pill">选择资料库</span>
-          <span id="mode-badge" class="mode-badge" hidden>演示模式</span>
+          <span id="mode-badge" class="mode-badge mode-badge-header" hidden>演示模式</span>
         </div>
-        <div class="main-header-actions">
+        <div class="main-header-actions desktop-only">
           <button id="retrieve-preview-btn" type="button" class="text-btn">检索预览</button>
           <button id="clear-chat-btn" type="button" class="text-btn">清空对话</button>
         </div>
+        <button type="button" id="mobile-header-brand" class="mobile-header-brand mobile-only" aria-label="打开菜单" title="菜单">
+          <img id="mobile-header-brand-img" class="mobile-header-brand-img" src="/static/assets/logo.png" alt="" />
+        </button>
       </header>
 
       <section id="chat-panel" class="chat-panel chat-empty">
         <div class="chat-hero">
-          <p class="hero-eyebrow">KNOWLEDGE Q&amp;A</p>
+          <div class="hero-mark mobile-only" aria-hidden="true">✦</div>
+          <p class="hero-eyebrow desktop-only">KNOWLEDGE Q&amp;A</p>
           <h1 id="hero-title" class="hero-title">我们应该了解什么？</h1>
           <p id="current-workspace-desc" class="hero-sub muted"></p>
         </div>

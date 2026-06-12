@@ -1623,6 +1623,14 @@ body {
   background: transparent;
 }
 
+.mobile-only {
+  display: none !important;
+}
+
+.desktop-only {
+  display: flex;
+}
+
 @media (max-width: 720px) {
   .welcome-cards {
     grid-template-columns: 1fr;
@@ -1636,21 +1644,332 @@ body {
   }
 }
 
-@media (max-width: 900px) {
+@media (max-width: 768px) {
+  .mobile-menu-btn.mobile-only,
+  .mobile-header-brand.mobile-only {
+    display: grid !important;
+  }
+
+  .sidebar-quick-actions.mobile-only {
+    display: grid !important;
+  }
+
+  .hero-mark.mobile-only {
+    display: grid !important;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .hero-eyebrow.desktop-only {
+    display: none !important;
+  }
+
   .app {
     grid-template-columns: 1fr;
-    grid-template-rows: auto 1fr;
+    position: relative;
+  }
+
+  body.sidebar-open {
+    overflow: hidden;
+  }
+
+  .sidebar-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 180;
+    background: rgba(15, 23, 42, 0.38);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+    pointer-events: none;
+  }
+
+  .sidebar-backdrop.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebar-backdrop[hidden] {
+    display: block !important;
+    visibility: hidden;
+  }
+
+  .sidebar-backdrop.is-visible[hidden] {
+    visibility: visible;
   }
 
   .sidebar {
-    max-height: 42vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(300px, 88vw);
+    max-height: none;
+    z-index: 190;
+    transform: translateX(-105%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .sidebar.is-open {
+    transform: translateX(0);
+    box-shadow: 8px 0 32px rgba(15, 23, 42, 0.12);
+  }
+
+  .sidebar-brand {
+    padding: 20px 18px 14px;
+  }
+
+  .brand-name {
+    font-family: var(--serif);
+    font-size: 1.35rem;
+    font-weight: 400;
+  }
+
+  .sidebar-section {
+    padding-inline: 14px;
   }
 
   .sidebar-projects {
-    max-height: 140px;
+    flex: 1;
+    max-height: none;
+    min-height: 0;
+  }
+
+  .workspace-list {
+    max-height: none;
+  }
+
+  .sidebar-quick-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .sidebar-quick-btn {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--panel);
+    color: var(--text);
+    padding: 10px 8px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .sidebar-footer {
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+  }
+
+  .main {
+    background-image: none;
+    background: var(--bg);
+    min-height: 0;
+  }
+
+  .main-header {
+    padding: 10px 14px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    background: var(--bg);
+    border-bottom: none;
+    gap: 8px;
+  }
+
+  .main-header-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .mobile-menu-btn,
+  .mobile-header-brand {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 12px;
+    background: transparent;
+    color: var(--text);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .mobile-menu-btn:active,
+  .mobile-header-brand:active {
+    background: rgba(0, 0, 0, 0.05);
+  }
+
+  .mobile-header-brand-img {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+
+  .workspace-pill {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    border: none;
+    background: transparent;
+    padding: 0 4px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .mode-badge.mode-badge-header {
+    display: none !important;
+  }
+
+  .chat-panel {
+    background: var(--bg);
+  }
+
+  .chat-stage {
+    padding: 0 14px max(14px, env(safe-area-inset-bottom));
+  }
+
+  .chat-hero {
+    padding: 0 8px;
+  }
+
+  .hero-mark {
+    display: grid !important;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    margin: 0 auto 16px;
+    font-size: 1.6rem;
+    color: var(--accent-orange);
+    opacity: 0.9;
   }
 
   .hero-title {
-    font-size: 1.75rem;
+    font-size: 1.65rem;
+    line-height: 1.25;
+  }
+
+  .hero-sub {
+    font-size: 0.88rem;
+    margin-top: 8px;
+  }
+
+  .chat-panel.chat-empty {
+    justify-content: space-between;
+  }
+
+  .chat-panel.chat-empty .chat-hero {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    margin-bottom: 0;
+    max-height: none;
+    padding-top: 12px;
+  }
+
+  .chat-panel.chat-empty .chat-stage {
+    width: 100%;
+    flex-shrink: 0;
+  }
+
+  .chat-panel.chat-empty .composer-card {
+    min-height: 56px;
+    border-radius: 22px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+  }
+
+  .chat-panel.chat-active .chat-stage {
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  .chat-form {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    background: linear-gradient(180deg, transparent 0%, var(--bg) 28%);
+    padding-top: 8px;
+  }
+
+  .composer-card {
+    border-radius: 22px;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+    padding: 10px 12px;
+  }
+
+  .composer-send {
+    width: 38px;
+    height: 38px;
+  }
+
+  .chat-form textarea {
+    font-size: 1rem;
+  }
+
+  .message.user {
+    max-width: 92%;
+    padding: 10px 14px;
+  }
+
+  .retrieval-notice,
+  .demo-quota-bar,
+  .demo-prompts {
+    font-size: 0.8rem;
+  }
+
+  .demo-prompts-list {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .demo-prompt-btn {
+    text-align: left;
+    border-radius: 12px;
+  }
+
+  .settings-dialog,
+  .chunks-dialog {
+    width: calc(100vw - 20px);
+    max-width: none;
+    margin: auto;
+    border-radius: 16px;
+  }
+
+  .chunks-dialog {
+    width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .chunks-dialog-inner {
+    height: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .welcome-dialog {
+    width: calc(100vw - 16px);
+    max-width: none;
+  }
+
+  .upload-dialog {
+    width: calc(100vw - 16px);
+    max-width: none;
+  }
+
+  .mention-picker {
+    max-height: min(200px, 40vh);
   }
 }

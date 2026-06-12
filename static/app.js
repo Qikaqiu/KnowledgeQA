@@ -100,8 +100,53 @@ const confirmDialogTitle = document.getElementById("confirm-dialog-title");
 const confirmDialogMessage = document.getElementById("confirm-dialog-message");
 const confirmDialogOk = document.getElementById("confirm-dialog-ok");
 const confirmDialogCancel = document.getElementById("confirm-dialog-cancel");
+const sidebar = document.getElementById("sidebar");
+const sidebarBackdrop = document.getElementById("sidebar-backdrop");
+const mobileMenuBtn = document.getElementById("mobile-menu-btn");
+const mobileHeaderBrand = document.getElementById("mobile-header-brand");
+const mobileHeaderBrandImg = document.getElementById("mobile-header-brand-img");
+const sidebarRetrievePreviewBtn = document.getElementById("sidebar-retrieve-preview-btn");
+const sidebarClearChatBtn = document.getElementById("sidebar-clear-chat-btn");
 
 let confirmResolver = null;
+
+const MOBILE_LAYOUT_QUERY = window.matchMedia("(max-width: 768px)");
+
+function isMobileLayout() {
+  return MOBILE_LAYOUT_QUERY.matches;
+}
+
+function openMobileSidebar() {
+  if (!isMobileLayout() || !sidebar) return;
+  sidebar.classList.add("is-open");
+  if (sidebarBackdrop) {
+    sidebarBackdrop.hidden = false;
+    sidebarBackdrop.classList.add("is-visible");
+    sidebarBackdrop.setAttribute("aria-hidden", "false");
+  }
+  document.body.classList.add("sidebar-open");
+}
+
+function closeMobileSidebar() {
+  if (!sidebar) return;
+  sidebar.classList.remove("is-open");
+  if (sidebarBackdrop) {
+    sidebarBackdrop.classList.remove("is-visible");
+    sidebarBackdrop.setAttribute("aria-hidden", "true");
+    window.setTimeout(() => {
+      if (!sidebar.classList.contains("is-open")) {
+        sidebarBackdrop.hidden = true;
+      }
+    }, 260);
+  }
+  document.body.classList.remove("sidebar-open");
+}
+
+function syncMobileHeaderBrand() {
+  if (!mobileHeaderBrandImg || !brandIconImg) return;
+  const src = brandIconImg.getAttribute("src");
+  if (src) mobileHeaderBrandImg.src = src;
+}
 
 let workspaceDialogMode = { action: "create", workspaceId: null };
 
@@ -142,6 +187,7 @@ function applyBrandSettings() {
 
   brandIconImg.src = settings.iconDataUrl || DEFAULT_BRAND_ICON;
   brandIconImg.hidden = false;
+  syncMobileHeaderBrand();
   brandIconFallback.hidden = true;
   brandIconBtn.classList.add("has-icon");
 }
@@ -1006,7 +1052,12 @@ function renderWorkspaces() {
       <div class="name">${escapeHtml(ws.name)}</div>
       <div class="meta">${ws.document_count || 0} 文档 · ${msgCount} 对话</div>
     `;
-    main.onclick = () => selectWorkspace(ws.id);
+    main.onclick = () => {
+      if (ws.id !== state.currentId) {
+        selectWorkspace(ws.id);
+      }
+      closeMobileSidebar();
+    };
 
     const actions = document.createElement("div");
     actions.className = "workspace-actions";
@@ -1368,6 +1419,7 @@ async function loadHealth() {
 }
 
 async function openSettings() {
+  closeMobileSidebar();
   const resp = await api("/api/settings");
   const serverDefaults = await resp.json();
   const user = loadUserLLM();
@@ -1748,6 +1800,7 @@ async function uploadFileWithProgress(file, onProgress) {
 }
 
 async function openUploadDialog() {
+  closeMobileSidebar();
   if (state.modeInfo?.startup_ready === false) {
     await showConfirm({
       title: "系统加载中",
@@ -2141,6 +2194,34 @@ async function handleRetrievePreview() {
 
 clearChatBtn.addEventListener("click", clearChat);
 retrievePreviewBtn.addEventListener("click", handleRetrievePreview);
+if (sidebarRetrievePreviewBtn) {
+  sidebarRetrievePreviewBtn.addEventListener("click", () => {
+    closeMobileSidebar();
+    handleRetrievePreview();
+  });
+}
+if (sidebarClearChatBtn) {
+  sidebarClearChatBtn.addEventListener("click", () => {
+    closeMobileSidebar();
+    clearChat();
+  });
+}
+if (mobileMenuBtn) mobileMenuBtn.addEventListener("click", openMobileSidebar);
+if (currentWorkspaceName) {
+  currentWorkspaceName.addEventListener("click", () => {
+    if (isMobileLayout()) openMobileSidebar();
+  });
+}
+if (mobileHeaderBrand) mobileHeaderBrand.addEventListener("click", openMobileSidebar);
+if (sidebarBackdrop) {
+  sidebarBackdrop.addEventListener("click", closeMobileSidebar);
+}
+MOBILE_LAYOUT_QUERY.addEventListener("change", () => {
+  if (!isMobileLayout()) closeMobileSidebar();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeMobileSidebar();
+});
 chunksClose.addEventListener("click", (e) => {
   e.preventDefault();
   e.stopPropagation();
