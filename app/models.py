@@ -85,6 +85,8 @@ class ModeInfo(BaseModel):
     has_user_api_key: bool
     startup_ready: bool = True
     embedding_backend: str = ""
+    retrieval_reason: str | None = None
+    demo_blocked: bool = False
     demo_quota: dict | None = None
     demo_catalog: dict | None = None
     features: dict[str, bool]

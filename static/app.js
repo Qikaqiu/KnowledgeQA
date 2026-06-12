@@ -3,6 +3,7 @@ const BRAND_STORAGE_KEY = "knowledgeqa_brand_v1";
 const USER_LLM_STORAGE_KEY = "knowledgeqa_user_llm_v1";
 const SESSION_STORAGE_KEY = "knowledgeqa_session_v1";
 const WELCOME_SEEN_KEY = "knowledgeqa_welcome_seen_v1";
+const RETRIEVAL_NOTICE_DISMISSED_KEY = "knowledgeqa_retrieval_notice_dismissed_v1";
 const DEFAULT_BRAND_ICON = "/static/assets/logo.png";
 const MAX_BRAND_ICON_BYTES = 256 * 1024;
 
@@ -67,8 +68,13 @@ const cfgOllamaModel = document.getElementById("cfg-ollama-model");
 const cfgClearKey = document.getElementById("cfg-clear-key");
 const cfgValidateKey = document.getElementById("cfg-validate-key");
 const modeBadge = document.getElementById("mode-badge");
+const retrievalNotice = document.getElementById("retrieval-notice");
+const retrievalNoticeBody = document.getElementById("retrieval-notice-body");
+const retrievalNoticeConfig = document.getElementById("retrieval-notice-config");
+const retrievalNoticeDismiss = document.getElementById("retrieval-notice-dismiss");
 const demoQuotaBar = document.getElementById("demo-quota-bar");
 const demoQuotaLeft = document.getElementById("demo-quota-left");
+const demoQuotaText = document.getElementById("demo-quota-text");
 const demoUpgradeBtn = document.getElementById("demo-upgrade-btn");
 const demoPrompts = document.getElementById("demo-prompts");
 const demoPromptsList = document.getElementById("demo-prompts-list");
@@ -1155,10 +1161,62 @@ function renderDocuments(docs) {
   });
 }
 
+function isKeywordEmbeddingBackend(info) {
+  return String(info?.embedding_backend || "").includes("关键词");
+}
+
+function buildRetrievalNoticeHtml(info) {
+  const reason = info?.retrieval_reason;
+  const keyword = isKeywordEmbeddingBackend(info);
+  const parts = [];
+
+  if (reason === "no_demo_key") {
+    parts.push(
+      "<p><strong>为什么点了「免费试用」仍是检索模式？</strong></p>",
+      "<p>欢迎页按钮只会加载示例资料库，<strong>不会自动开启演示 AI</strong>。需要管理员在服务器配置 <code>DEMO_API_KEY</code> 并重新部署后，访客才会自动进入演示模式。</p>"
+    );
+  } else {
+    parts.push(
+      "<p>当前没有可用的大模型 Key（服务端演示与本机 Key 均未生效），因此只能展示检索结果。</p>"
+    );
+  }
+
+  parts.push(
+    "<p><strong>为什么回答难以阅读？</strong></p>",
+    "<ul>",
+    "<li>检索模式<strong>不调用大模型</strong>，只把匹配到的原文片段拼在一起，没有自然语言总结</li>"
+  );
+  if (keyword) {
+    parts.push(
+      "<li>当前部署使用<strong>轻量关键词检索</strong>（为节省内存），语义理解弱，匹配可能不精准</li>"
+    );
+  }
+  parts.push(
+    "<li>片段来自 Markdown 文档，已做简化排版，但仍不如 AI 整理后的回答易读</li>",
+    "</ul>",
+    "<p><strong>如何获得完整体验？</strong> 点击「配置 API Key」使用自己的 Key；或请管理员在 Railway Variables 设置 <code>DEMO_API_KEY</code> 后 Redeploy。</p>"
+  );
+
+  return parts.join("");
+}
+
+function updateRetrievalNotice(info) {
+  if (!retrievalNotice || !retrievalNoticeBody) return;
+  const show =
+    info?.tier === "retrieval" &&
+    !info?.has_user_api_key &&
+    localStorage.getItem(RETRIEVAL_NOTICE_DISMISSED_KEY) !== "1";
+  retrievalNotice.hidden = !show;
+  if (show) {
+    retrievalNoticeBody.innerHTML = buildRetrievalNoticeHtml(info);
+  }
+}
+
 function updateModeUI() {
   const info = state.modeInfo;
   if (!info) return;
 
+  const quota = info.demo_quota;
   const label = info.provider_label || info.tier;
   llmMode.title = `当前：${label} · 点击配置`;
 
@@ -1166,21 +1224,16 @@ function updateModeUI() {
   if (footerLabel) {
     if (info.tier === "full") footerLabel.textContent = "完整模式";
     else if (info.tier === "demo") {
-      footerLabel.textContent = quota
-        ? `演示模式 · 余${quota.remaining}次`
-        : "演示模式";
-    } else if (info.tier === "retrieval" && info.demo_available) {
-      footerLabel.textContent = quota
-        ? `检索模式 · 可试用${quota.remaining}次`
-        : "检索模式";
+      if (info.demo_blocked) footerLabel.textContent = "演示模式 · 今日已用完";
+      else footerLabel.textContent = quota ? `演示模式 · 余${quota.remaining}次` : "演示模式";
     } else footerLabel.textContent = "检索模式";
   }
 
   if (modeBadge) {
     if (info.tier === "demo") {
       modeBadge.hidden = false;
-      modeBadge.textContent = "演示模式";
-      modeBadge.className = "mode-badge";
+      modeBadge.textContent = info.demo_blocked ? "演示已用完" : "演示模式";
+      modeBadge.className = "mode-badge" + (info.demo_blocked ? " mode-exhausted" : "");
     } else if (info.tier === "full") {
       modeBadge.hidden = false;
       modeBadge.textContent = "完整模式";
@@ -1192,19 +1245,21 @@ function updateModeUI() {
     }
   }
 
-  const quota = info.demo_quota;
-  const showQuota =
-    !!quota &&
-    !info.has_user_api_key &&
-    (info.tier === "demo" ||
-      (info.tier === "retrieval" && info.demo_available));
+  const showQuota = !!quota && !info.has_user_api_key && info.tier === "demo";
   if (demoQuotaBar) {
     demoQuotaBar.hidden = !showQuota;
     demoQuotaBar.style.display = showQuota ? "" : "none";
+    demoQuotaBar.classList.toggle("demo-quota-exhausted", !!info.demo_blocked);
   }
-  if (demoQuotaLeft && showQuota) {
-    demoQuotaLeft.textContent = String(quota.remaining);
+  if (showQuota && demoQuotaText) {
+    if (info.demo_blocked) {
+      demoQuotaText.textContent = `今日演示次数已用完（${quota.daily_limit} 次/天），提问将无法调用 AI`;
+    } else {
+      demoQuotaText.innerHTML = `您今日还可试用 <strong id="demo-quota-left">${quota.remaining}</strong> 次`;
+    }
   }
+
+  updateRetrievalNotice(info);
 
   if (info.startup_ready === false) {
     chatInput.placeholder = "系统正在加载嵌入模型，请稍候再提问或上传…";
@@ -2104,10 +2159,44 @@ settingsClose.addEventListener("click", () => settingsDialog.close());
 cfgClearKey.addEventListener("click", clearApiKey);
 cfgValidateKey.addEventListener("click", validateUserKey);
 demoUpgradeBtn.addEventListener("click", openSettings);
+if (retrievalNoticeConfig) retrievalNoticeConfig.addEventListener("click", openSettings);
+if (retrievalNoticeDismiss) {
+  retrievalNoticeDismiss.addEventListener("click", () => {
+    localStorage.setItem(RETRIEVAL_NOTICE_DISMISSED_KEY, "1");
+    if (retrievalNotice) retrievalNotice.hidden = true;
+  });
+}
 welcomeTryDemo.addEventListener("click", async () => {
   localStorage.setItem(WELCOME_SEEN_KEY, "1");
   welcomeDialog.close();
-  await setupDemoExperience();
+  await loadModeInfo();
+  if (state.modeInfo?.tier === "demo") {
+    if (state.modeInfo.demo_blocked) {
+      await showConfirm({
+        title: "今日试用次数已用完",
+        message: `演示模式每日限 ${state.modeInfo.demo_quota?.daily_limit || 10} 次，今日额度已耗尽。可配置自己的 API Key 继续使用，或明天再试。`,
+        confirmText: "去配置 Key",
+        cancelText: "知道了",
+      }).then((go) => {
+        if (go) openSettings();
+      });
+      return;
+    }
+    await setupDemoExperience();
+    return;
+  }
+  localStorage.removeItem(RETRIEVAL_NOTICE_DISMISSED_KEY);
+  updateRetrievalNotice(state.modeInfo);
+  await showConfirm({
+    title: "演示 AI 未开启",
+    message:
+      "服务端尚未配置 DEMO_API_KEY，因此无法进入演示模式。已为你加载示例资料库，但问答仍只能是检索摘录。\n\n请让管理员在 Railway 配置 DEMO_API_KEY 并 Redeploy，或点击「配置 API Key」使用自己的 Key。",
+    confirmText: "去配置 Key",
+    cancelText: "知道了",
+    alertOnly: false,
+  }).then((go) => {
+    if (go) openSettings();
+  });
 });
 welcomeConfigKey.addEventListener("click", () => {
   localStorage.setItem(WELCOME_SEEN_KEY, "1");

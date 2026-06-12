@@ -70,13 +70,24 @@
         <div class="chat-stage">
           <div id="chat-log" class="chat-log"></div>
 
+          <div id="retrieval-notice" class="retrieval-notice" hidden>
+            <div class="retrieval-notice-head">
+              <span class="retrieval-notice-title">检索模式说明</span>
+              <button type="button" id="retrieval-notice-dismiss" class="text-btn retrieval-notice-dismiss" title="收起">收起</button>
+            </div>
+            <div id="retrieval-notice-body" class="retrieval-notice-body"></div>
+            <div class="retrieval-notice-actions">
+              <button type="button" id="retrieval-notice-config" class="text-btn inline-upgrade-btn">配置 API Key</button>
+            </div>
+          </div>
+
           <div id="demo-prompts" class="demo-prompts" hidden>
             <span class="demo-prompts-label">试试这些问题：</span>
             <div id="demo-prompts-list" class="demo-prompts-list"></div>
           </div>
 
           <div id="demo-quota-bar" class="demo-quota-bar" hidden>
-            <span>您今日还可试用 <strong id="demo-quota-left">0</strong> 次</span>
+            <span id="demo-quota-text">您今日还可试用 <strong id="demo-quota-left">0</strong> 次</span>
             <button type="button" id="demo-upgrade-btn" class="text-btn inline-upgrade-btn">配置 API Key 解锁完整功能</button>
           </div>
 

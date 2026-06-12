@@ -127,9 +127,10 @@ def retrieval_answer(question: str, sources: list[dict]) -> str:
 
     brief = _extract_brief_answer(sources)
     lines = [
-        "检索模式：以下为匹配到的关键信息。配置 API Key 或「免费试用」可获得完整 AI 回答。",
+        "【检索模式】以下为关键词匹配到的原文摘录，未经大模型整理，可读性有限。",
+        "配置 API Key 后，或由管理员开启演示服务（DEMO_API_KEY），可获得完整 AI 回答。",
         "",
-        f"答：{brief}",
+        f"要点：{brief}",
         "",
     ]
 

@@ -246,6 +246,14 @@ def resolve_mode(request: Request, *, consume_demo: bool = False) -> ResolvedMod
     )
 
 
+def _retrieval_reason(resolved: ResolvedMode) -> str | None:
+    if resolved.tier != TIER_RETRIEVAL:
+        return None
+    if not demo_available():
+        return "no_demo_key"
+    return "no_credentials"
+
+
 def mode_info(request: Request) -> dict:
     user_creds = parse_user_headers(request)
     has_user_key = bool(user_creds)
@@ -260,6 +268,8 @@ def mode_info(request: Request) -> dict:
         tier_source = "server"
     from app.services.embedder import backend_label
 
+    demo_blocked = bool(quota and int(quota.get("remaining", 0)) <= 0)
+
     return {
         "tier": resolved.tier,
         "tier_source": tier_source,
@@ -267,6 +277,8 @@ def mode_info(request: Request) -> dict:
         "demo_available": demo_available(),
         "has_user_api_key": has_user_key,
         "demo_quota": quota,
+        "demo_blocked": demo_blocked,
+        "retrieval_reason": _retrieval_reason(resolved),
         "embedding_backend": backend_label(),
         "features": resolved.features,
         "limits": {
