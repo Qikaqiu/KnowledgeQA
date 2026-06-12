@@ -725,6 +725,18 @@ body {
   white-space: normal;
 }
 
+.message-body.retrieval-body {
+  white-space: pre-wrap;
+  line-height: 1.7;
+  font-size: 0.92rem;
+  color: var(--text);
+}
+
+.message-body.retrieval-body::first-line {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
 .markdown-body > :first-child {
   margin-top: 0;
 }
@@ -1101,7 +1113,12 @@ body {
 
 .source-path { color: var(--accent-blue); font-size: 0.78rem; margin-bottom: 4px; }
 .source-summary { color: var(--muted); font-size: 0.78rem; margin-bottom: 4px; }
-.source-excerpt { color: var(--muted); line-height: 1.45; cursor: pointer; }
+.source-excerpt {
+  color: var(--muted);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  cursor: pointer;
+}
 .source-excerpt:hover { color: var(--text); }
 
 .linkish-btn {

@@ -1,5 +1,6 @@
 import asyncio
 import json
+import re
 from collections.abc import AsyncIterator
 
 import httpx
@@ -69,32 +70,83 @@ def build_user_prompt(
     return f"{scope_line}资料片段:\n{context}\n\n用户问题: {question}"
 
 
+def _clean_snippet_for_display(text: str, max_chars: int = 240) -> str:
+    """去掉 Markdown 噪音，格式化为可读纯文本。"""
+    text = text.strip()
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"\*\*([^*]+)\*\*", r"\1", text)
+    text = re.sub(r"\*([^*]+)\*", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+
+    lines: list[str] = []
+    for raw_line in text.split("\n"):
+        line = raw_line.strip()
+        if not line:
+            continue
+        if re.match(r"^[-|:\s]+$", line):
+            continue
+        if line.count("|") >= 2:
+            continue
+        if line.startswith("#"):
+            line = re.sub(r"^#+\s*", "", line)
+            lines.append(f"• {line}")
+        elif re.match(r"^[-*+]\s+", line):
+            lines.append(f"  • {re.sub(r'^[-*+]\s+', '', line)}")
+        elif re.match(r"^\d+\.\s+", line):
+            lines.append(f"  • {re.sub(r'^\d+\.\s+', '', line)}")
+        else:
+            lines.append(line)
+
+    result = "\n".join(lines)
+    if len(result) > max_chars:
+        result = result[:max_chars].rstrip() + "…"
+    return result
+
+
+def _extract_brief_answer(sources: list[dict]) -> str:
+    best = sources[0]
+    summary = (best.get("summary") or "").strip()
+    if summary:
+        return summary
+
+    cleaned = _clean_snippet_for_display(best.get("snippet", ""), max_chars=320)
+    for line in cleaned.split("\n"):
+        plain = line.strip().lstrip("•").strip()
+        if len(plain) >= 6:
+            return plain
+    return cleaned.replace("\n", " ").strip()
+
+
 def retrieval_answer(question: str, sources: list[dict]) -> str:
     if not sources:
         return (
-            "当前资料库还没有足够相关的资料。请先上传文档，或换个问法后重试。"
-            "（检索模式：请配置 API Key 或点击「免费试用」体验演示模式。）"
+            "当前资料库还没有足够相关的资料。请先上传文档，或换个问法后重试。\n\n"
+            "提示：配置 API Key 或点击「免费试用」可获得完整 AI 回答。"
         )
 
+    brief = _extract_brief_answer(sources)
     lines = [
-        "以下回答基于资料库检索结果生成（检索模式，配置 API Key 后可获得完整 LLM 回答）：",
+        "检索模式：以下为匹配到的关键信息。配置 API Key 或「免费试用」可获得完整 AI 回答。",
+        "",
+        f"答：{brief}",
         "",
     ]
+
     for i, src in enumerate(sources[:3], start=1):
-        snippet = src["snippet"].replace("\n", " ")
-        if len(snippet) > 220:
-            snippet = snippet[:220] + "..."
         relevance = src.get("relevance") or f"相关度 {src['score']:.0%}"
-        chunk = src.get("chunk_index")
-        chunk_label = f"，片段 #{int(chunk) + 1}" if chunk is not None else ""
-        lines.append(f"资料{i}：《{src['document']}》（{relevance}{chunk_label}）")
-        lines.append(f"   {snippet}")
+        heading = src.get("heading_path") or ""
+        location = f"《{src['document']}》"
+        if heading:
+            location += f" · {heading}"
+        snippet = _clean_snippet_for_display(src.get("snippet", ""))
+        lines.append(f"【资料 {i}】{location}（{relevance}）")
+        if snippet:
+            lines.append(snippet)
         lines.append("")
 
-    best = sources[0]["snippet"].replace("\n", " ")
-    lines.append("综合摘要：")
-    lines.append(best[:600] + ("..." if len(best) > 600 else ""))
-    return "\n".join(lines)
+    lines.append("完整原文见下方「引用来源」，点击可展开查看。")
+    return "\n".join(lines).strip()
 
 
 async def stream_openai(

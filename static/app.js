@@ -382,6 +382,35 @@ function formatSnippet(snippet) {
   return `${clean.slice(0, 160)}…`;
 }
 
+function cleanSnippetForDisplay(snippet, maxChars = 280) {
+  let text = String(snippet || "").trim();
+  if (!text) return "";
+
+  text = text
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1");
+
+  const lines = [];
+  for (const rawLine of text.split("\n")) {
+    let line = rawLine.trim();
+    if (!line || /^[-|:\s]+$/.test(line)) continue;
+    if ((line.match(/\|/g) || []).length >= 2) continue;
+    if (line.startsWith("#")) line = `• ${line.replace(/^#+\s*/, "")}`;
+    else if (/^[-*+]\s+/.test(line)) line = `  • ${line.replace(/^[-*+]\s+/, "")}`;
+    else if (/^\d+\.\s+/.test(line)) line = `  • ${line.replace(/^\d+\.\s+/, "")}`;
+    lines.push(line);
+  }
+
+  let result = lines.join("\n");
+  if (result.length > maxChars) {
+    result = `${result.slice(0, maxChars).trim()}…`;
+  }
+  return result || formatSnippet(snippet);
+}
+
 function renderMarkdown(text) {
   const source = String(text || "");
   if (!source) return "";
@@ -402,12 +431,19 @@ function renderMarkdown(text) {
   return html;
 }
 
-function setMessageBody(bodyEl, text, role) {
+function setMessageBody(bodyEl, text, role, mode = null) {
   if (role === "bot") {
-    bodyEl.classList.add("markdown-body");
-    bodyEl.innerHTML = renderMarkdown(text);
+    if (mode === "retrieval") {
+      bodyEl.classList.remove("markdown-body");
+      bodyEl.classList.add("retrieval-body");
+      bodyEl.textContent = text;
+    } else {
+      bodyEl.classList.remove("retrieval-body");
+      bodyEl.classList.add("markdown-body");
+      bodyEl.innerHTML = renderMarkdown(text);
+    }
   } else {
-    bodyEl.classList.remove("markdown-body");
+    bodyEl.classList.remove("markdown-body", "retrieval-body");
     bodyEl.textContent = text;
   }
 }
@@ -601,7 +637,7 @@ function buildSourceBlock(sources) {
 
     const excerpt = document.createElement("div");
     excerpt.className = "source-excerpt";
-    excerpt.textContent = formatSnippet(src.snippet);
+    excerpt.textContent = cleanSnippetForDisplay(src.snippet);
     details.appendChild(excerpt);
 
     if (jumpToChunk) {
@@ -644,7 +680,7 @@ function renderMessage(msg) {
 
   const body = document.createElement("div");
   body.className = "message-body";
-  setMessageBody(body, msg.text, msg.role);
+  setMessageBody(body, msg.text, msg.role, msg.mode);
   div.appendChild(body);
 
   if (msg.role === "bot" && msg.sources && msg.sources.length) {
@@ -1892,7 +1928,7 @@ async function sendMessage(text) {
         } else if (payload.type === "token") {
           answerText += payload.content;
           if (state.currentId === workspaceId && botBody) {
-            setMessageBody(botBody, answerText, "bot");
+            setMessageBody(botBody, answerText, "bot", answerMode);
             scrollChatToBottom();
           }
         }
