@@ -97,15 +97,18 @@ async def seed_sample_documents() -> None:
 async def _background_startup() -> None:
     global _startup_ready
     try:
+        from app.config import SKIP_DEMO_SEED
         from app.services.embedding_migrate import ensure_embedding_index
-        from app.services.embedder import embed_texts
+        from app.services.embedder import embed_texts, is_keyword_backend
 
         from app.services.ingest import recover_processing_documents
 
         await ensure_embedding_index()
         await recover_processing_documents()
-        await seed_sample_documents()
-        await asyncio.to_thread(embed_texts, ["预热"])
+        if not SKIP_DEMO_SEED:
+            await seed_sample_documents()
+        if not is_keyword_backend():
+            await asyncio.to_thread(embed_texts, ["预热"])
         logger.info("Background startup complete")
     except Exception:
         logger.exception("Background startup failed")
@@ -131,6 +134,7 @@ def health(request: Request):
     return {
         "status": "ok",
         "startup_ready": _startup_ready,
+        "embedding_backend": mode.get("embedding_backend", ""),
         "llm_mode": settings["llm_mode"],
         "provider_label": mode["provider_label"],
         "tier": mode["tier"],

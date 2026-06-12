@@ -258,6 +258,8 @@ def mode_info(request: Request) -> dict:
         tier_source = "demo"
     elif resolved.tier == TIER_FULL:
         tier_source = "server"
+    from app.services.embedder import backend_label
+
     return {
         "tier": resolved.tier,
         "tier_source": tier_source,
@@ -265,6 +267,7 @@ def mode_info(request: Request) -> dict:
         "demo_available": demo_available(),
         "has_user_api_key": has_user_key,
         "demo_quota": quota,
+        "embedding_backend": backend_label(),
         "features": resolved.features,
         "limits": {
             "demo_max_chars": DEMO_MAX_CHARS,

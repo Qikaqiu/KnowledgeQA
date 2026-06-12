@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 from app.config import DEMO_MIN_RELEVANCE_SCORE, MIN_RELEVANCE_SCORE, RECALL_TOP_K
 from app.services.app_mode import TIER_DEMO
 from app.models import SourceChunk
-from app.services.embedder import embed_query
+from app.services.embedder import embed_query, is_keyword_backend
 from app.services import llm
 from app.services.app_mode import ResolvedMode
 from app.services.reranker import rerank_hits
@@ -67,30 +67,65 @@ def _merge_raw_hits(batches: list[list[dict]]) -> list[dict]:
     return merged
 
 
+def _annotate_keyword_hits(question: str, raw_hits: list[dict]) -> list[dict]:
+    hits: list[dict] = []
+    for hit in raw_hits:
+        keyword = hit.get("keyword_score")
+        if keyword is None:
+            keyword = keyword_overlap_score(
+                question,
+                f"{hit.get('heading_path', '')} {hit.get('summary', '')} {hit['snippet']}",
+            )
+        final = combined_score(0.0, keyword)
+        hit = dict(hit)
+        hit["semantic_score"] = 0.0
+        hit["keyword_score"] = round(keyword, 4)
+        hit["vector_score"] = final
+        hit["score"] = final
+        hit["relevance"] = relevance_label(final, MIN_RELEVANCE_SCORE)
+        hits.append(hit)
+    return sorted(hits, key=lambda h: h["score"], reverse=True)
+
+
 async def retrieve_hits(
     workspace_id: str,
     question: str,
     document_ids: list[str] | None = None,
     resolved: ResolvedMode | None = None,
 ) -> list[dict]:
-    embedding = embed_query(question)
     unique_ids = list(dict.fromkeys(document_ids or []))
 
-    if len(unique_ids) > 1:
-        per_doc_k = max(4, (RECALL_TOP_K + len(unique_ids) - 1) // len(unique_ids))
-        batches = [
-            vector_store.query(
-                workspace_id, embedding, top_k=per_doc_k, document_ids=[doc_id]
+    if is_keyword_backend():
+        if len(unique_ids) > 1:
+            per_doc_k = max(4, (RECALL_TOP_K + len(unique_ids) - 1) // len(unique_ids))
+            batches = [
+                vector_store.keyword_search(
+                    workspace_id, question, top_k=per_doc_k, document_ids=[doc_id]
+                )
+                for doc_id in unique_ids
+            ]
+            raw_hits = _merge_raw_hits(batches)
+        else:
+            raw_hits = vector_store.keyword_search(
+                workspace_id, question, document_ids=unique_ids or None
             )
-            for doc_id in unique_ids
-        ]
-        raw_hits = _merge_raw_hits(batches)
+        hits = _annotate_keyword_hits(question, raw_hits)
     else:
-        raw_hits = vector_store.query(
-            workspace_id, embedding, document_ids=unique_ids or None
-        )
-
-    hits = _annotate_vector_hits(question, raw_hits)
+        embedding = embed_query(question)
+        if len(unique_ids) > 1:
+            per_doc_k = max(4, (RECALL_TOP_K + len(unique_ids) - 1) // len(unique_ids))
+            batches = [
+                vector_store.query(
+                    workspace_id, embedding, top_k=per_doc_k, document_ids=[doc_id]
+                )
+                for doc_id in unique_ids
+            ]
+            raw_hits = _merge_raw_hits(batches)
+        else:
+            raw_hits = vector_store.query(
+                workspace_id, embedding, document_ids=unique_ids or None
+            )
+        hits = _annotate_vector_hits(question, raw_hits)
     creds = resolved.credentials if resolved else None
     tier = resolved.tier if resolved else None
     return await rerank_hits(

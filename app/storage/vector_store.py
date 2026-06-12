@@ -249,6 +249,48 @@ class VectorStore:
       )
     return hits
 
+  def keyword_search(
+    self,
+    workspace_id: str,
+    question: str,
+    top_k: int = RECALL_TOP_K,
+    document_ids: list[str] | None = None,
+  ) -> list[dict]:
+    from app.services.relevance import keyword_overlap_score
+
+    collection = self._collection(workspace_id)
+    if collection.count() == 0:
+      return []
+
+    where = self._document_filter(document_ids)
+    kwargs: dict = {"include": ["documents", "metadatas"]}
+    if where:
+      kwargs["where"] = where
+    result = collection.get(**kwargs)
+
+    hits: list[dict] = []
+    documents = result.get("documents") or []
+    metadatas = result.get("metadatas") or []
+    for doc, meta in zip(documents, metadatas):
+      text = f"{meta.get('heading_path', '')} {meta.get('summary', '')} {doc}"
+      keyword = keyword_overlap_score(question, text.lower())
+      hits.append(
+        {
+          "document": meta.get("filename", "unknown"),
+          "snippet": doc,
+          "distance": max(0.0, 1.0 - keyword),
+          "score": keyword,
+          "document_id": meta.get("document_id"),
+          "chunk_index": meta.get("chunk_index", 0),
+          "heading_path": meta.get("heading_path", ""),
+          "summary": meta.get("summary", ""),
+          "keyword_score": keyword,
+          "semantic_score": 0.0,
+        }
+      )
+    hits.sort(key=lambda item: item["score"], reverse=True)
+    return hits[:top_k]
+
   def list_document_chunks(self, workspace_id: str, document_id: str) -> list[dict]:
     collection = self._collection(workspace_id)
     result = collection.get(

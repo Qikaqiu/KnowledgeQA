@@ -84,6 +84,7 @@ class ModeInfo(BaseModel):
     demo_available: bool
     has_user_api_key: bool
     startup_ready: bool = True
+    embedding_backend: str = ""
     demo_quota: dict | None = None
     demo_catalog: dict | None = None
     features: dict[str, bool]

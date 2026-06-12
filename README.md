@@ -5,7 +5,7 @@
 ## 功能
 
 - 多资料库隔离，文档上传后自动分块、向量化
-- 中文检索： [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding) / `BAAI/bge-small-zh-v1.5`
+- 中文检索：默认 **关键词模式**（1GB 可跑）；可选 [FastEmbed](https://github.com/qdrant/fastembed) ONNX 或 [FlagEmbedding](https://github.com/FlagOpen/FlagEmbedding) BGE
 - 流式问答 + 引用来源 + 检索预览
 - 三种运行模式：完整模式（用户自带 Key）/ 演示模式（服务端 Key）/ 检索模式
 - 支持 TXT、Markdown、PDF、Word、PPT、Excel 等（[MarkItDown](https://github.com/microsoft/markitdown)）
@@ -92,14 +92,26 @@ Windows 也可直接运行 `run.bat`。
 | 云服务器 VPS | 阿里云 / 腾讯云 / DigitalOcean，直接 `run.bat` 或 Docker |
 | [Fly.io](https://fly.io/) | 容器部署，可挂载 Volume |
 
-### Railway 简要步骤
+### Railway 1GB 免费演示（推荐配置）
 
-1. New Project → Deploy from GitHub → 选择本仓库  
-2. **Variables**：粘贴 `.env` 内容（含 `DEMO_API_KEY`、`INGEST_ENABLE_SUMMARY=false`）  
-3. **Volumes** → Add Volume → Mount Path 填 **`/app/data`**，挂载到当前服务  
-4. Settings → 内存建议 **2GB+**（BGE 模型需要）  
-5. 部署完成后访问 `https://xxx.up.railway.app/api/health`，`startup_ready: true` 后再上传  
-6. 上传后文件列表显示「处理中…」属正常，稍等自动刷新  
+在 Variables 中设置：
+
+```env
+DEMO_API_KEY=你的DeepSeek密钥
+EMBEDDING_BACKEND=keyword
+INGEST_ENABLE_SUMMARY=false
+```
+
+- **`keyword`**：不加载嵌入模型，纯中文关键词检索 + 演示 LLM，**1GB 内存可跑**
+- **`fastembed`**：轻量 ONNX 向量模型，约需 1.5GB，1GB 可能仍紧张
+- 切勿使用 `flag`（PyTorch + FlagEmbedding，需 2GB+）
+
+步骤：
+
+1. New Project → Deploy from GitHub  
+2. **Volumes** → Mount Path：**`/app/data`**  
+3. 部署后访问 `/api/health`，`startup_ready: true` 即可试用  
+4. 欢迎页点「立即免费试用」，用预置示例或上传小 txt/md 测试  
 
 ### Docker（推荐）
 
@@ -126,14 +138,14 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 3. 定期备份 `data/` 目录（向量库与上传文件）
 4. `.env` 仅在服务器配置，**不要提交 Git**
 5. 公开站点设置 `ALLOW_ENV_KEY_WRITE=false`、`USE_SERVER_API_KEY=false`
-6. 首次启动会下载 BGE 模型，需预留磁盘与内存；上传后会在后台向量化，列表显示「处理中」属正常
-7. 建议设置 `INGEST_ENABLE_SUMMARY=false` 加快上传
+6. `EMBEDDING_BACKEND=keyword` 时不下载模型；`fastembed` / `flag` 首次启动会下载嵌入模型
+7. 建议设置 `INGEST_ENABLE_SUMMARY=false` 加快上传；上传后后台入库，列表显示「处理中」属正常
 
 ## 技术栈
 
 - **后端**：FastAPI、Uvicorn、httpx、aiofiles
 - **向量库**：ChromaDB（本地持久化）
-- **嵌入**：FlagEmbedding · BGE 中文 v1.5
+- **嵌入**：`keyword`（演示）/ FastEmbed ONNX / FlagEmbedding BGE（本地高配，见 `requirements-full.txt`）
 - **LLM**：OpenAI 兼容 API / Ollama / 检索摘要
 
 ## License

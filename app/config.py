@@ -25,8 +25,11 @@ DEMO_DELAY_SECONDS = 1.5
 
 OLLAMA_BASE_URL = "http://127.0.0.1:11434"
 OLLAMA_MODEL = "llama3.2"
+EMBEDDING_BACKEND = "keyword"  # keyword | fastembed | flag
 EMBEDDING_MODEL = "BAAI/bge-small-zh-v1.5"
 EMBEDDING_QUERY_INSTRUCTION = "为这个句子生成表示以用于检索相关文章："
+KEYWORD_EMBED_DIM = 8
+SKIP_DEMO_SEED = False
 ALLOW_ENV_KEY_WRITE = True
 # 仅自托管时开启：所有访客共用服务端 OPENAI_API_KEY（公开发布请保持 false）
 USE_SERVER_API_KEY = False
@@ -46,7 +49,8 @@ def reload_config() -> None:
     global OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL
     global DEMO_API_KEY, DEMO_BASE_URL, DEMO_MODEL
     global DEMO_DAILY_LIMIT, DEMO_PER_MINUTE_LIMIT, DEMO_MAX_CHARS, DEMO_DELAY_SECONDS
-    global OLLAMA_BASE_URL, OLLAMA_MODEL, EMBEDDING_MODEL, EMBEDDING_QUERY_INSTRUCTION
+    global OLLAMA_BASE_URL, OLLAMA_MODEL, EMBEDDING_BACKEND, EMBEDDING_MODEL
+    global EMBEDDING_QUERY_INSTRUCTION, KEYWORD_EMBED_DIM, SKIP_DEMO_SEED
     global ALLOW_ENV_KEY_WRITE, USE_SERVER_API_KEY, INGEST_ENABLE_SUMMARY
 
     load_dotenv(ENV_FILE, override=True)
@@ -62,11 +66,18 @@ def reload_config() -> None:
     DEMO_DELAY_SECONDS = float(os.getenv("DEMO_DELAY_SECONDS", "1.5"))
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434").rstrip("/")
     OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+    EMBEDDING_BACKEND = os.getenv("EMBEDDING_BACKEND", "keyword").strip().lower()
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
     EMBEDDING_QUERY_INSTRUCTION = os.getenv(
         "EMBEDDING_QUERY_INSTRUCTION",
         "为这个句子生成表示以用于检索相关文章：",
     )
+    KEYWORD_EMBED_DIM = int(os.getenv("KEYWORD_EMBED_DIM", "8"))
+    SKIP_DEMO_SEED = os.getenv("SKIP_DEMO_SEED", "false").lower() in {
+        "1",
+        "true",
+        "yes",
+    }
     ALLOW_ENV_KEY_WRITE = os.getenv("ALLOW_ENV_KEY_WRITE", "true").lower() in {
         "1",
         "true",

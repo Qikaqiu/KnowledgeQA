@@ -4,7 +4,12 @@ import asyncio
 import json
 from pathlib import Path
 
-from app.config import DATA_DIR, EMBEDDING_MODEL, EMBEDDING_QUERY_INSTRUCTION
+from app.config import (
+    DATA_DIR,
+    EMBEDDING_BACKEND,
+    EMBEDDING_MODEL,
+    EMBEDDING_QUERY_INSTRUCTION,
+)
 from app.services.chunk_enricher import enrich_chunks
 from app.services.document_parser import parse_file
 from app.services.embedder import clear_embedder_cache, embed_texts
@@ -16,6 +21,7 @@ EMBEDDING_META_FILE = DATA_DIR / "embedding_meta.json"
 
 def _embedding_signature() -> dict[str, str]:
     return {
+        "backend": EMBEDDING_BACKEND,
         "model": EMBEDDING_MODEL,
         "instruction": EMBEDDING_QUERY_INSTRUCTION,
     }
