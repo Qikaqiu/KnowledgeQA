@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 ENV EMBEDDING_BACKEND=keyword \
-    INGEST_ENABLE_SUMMARY=false \
+    INGEST_ENABLE_SUMMARY=true \
     HF_HOME=/app/data/hf_cache
 
 COPY requirements.txt .
