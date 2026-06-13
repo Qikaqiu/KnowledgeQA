@@ -479,7 +479,7 @@ function renderMarkdown(text) {
   let html = marked.parse(source);
   html = html.replace(/\[(\d+)\]/g, '<sup class="citation">[$1]</sup>');
   if (typeof DOMPurify !== "undefined") {
-    return DOMPurify.sanitize(html);
+    return DOMPurify.sanitize(html, { ADD_TAGS: ["sup"] });
   }
   return html;
 }
