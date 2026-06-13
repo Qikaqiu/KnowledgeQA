@@ -20,9 +20,9 @@ def ensure_demo_workspaces() -> None:
     import json
 
     defaults = [
-        ("ws_tech", "技术文档", "技术栈、RAG 流程与部署指南"),
-        ("ws_product", "产品手册", "产品能力、运行模式与常见问题"),
-        ("ws_policy", "使用规范", "数据安全、演示限制与合规建议"),
+        ("ws_tech", "前沿科技", "AI 趋势、太空探索与技术动态"),
+        ("ws_product", "绿色未来", "新能源、气候变化与可持续发展"),
+        ("ws_policy", "科技人文", "AI 伦理、数字素养与社会责任"),
     ]
     workspaces = list_workspaces()
     by_id = {ws["id"]: ws for ws in workspaces}
@@ -60,23 +60,23 @@ DEMO_CATALOG = {
     "prompts": [
         {
             "workspace_id": "ws_tech",
-            "label": "技术栈",
-            "question": "这个项目用了哪些技术？",
+            "label": "AI 趋势",
+            "question": "2025 年 AI 行业有哪些重要趋势？",
         },
         {
             "workspace_id": "ws_tech",
-            "label": "向量数据库",
-            "question": "系统使用什么向量数据库？",
+            "label": "太空探索",
+            "question": "阿尔忒弥斯计划的最新进展是什么？",
         },
         {
             "workspace_id": "ws_product",
-            "label": "运行模式",
-            "question": "系统有哪几种运行模式？",
+            "label": "新能源",
+            "question": "全球可再生能源发展现状如何？",
         },
         {
             "workspace_id": "ws_policy",
-            "label": "演示限制",
-            "question": "演示模式有什么限制？",
+            "label": "AI 伦理",
+            "question": "AI 伦理面临哪些核心挑战？",
         },
     ],
 }
