@@ -110,10 +110,9 @@ async def _background_startup() -> None:
         if not is_keyword_backend():
             await asyncio.to_thread(embed_texts, ["预热"])
         logger.info("Background startup complete")
+        _startup_ready = True
     except Exception:
         logger.exception("Background startup failed")
-    finally:
-        _startup_ready = True
 
 
 @app.on_event("startup")

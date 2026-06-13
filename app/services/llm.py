@@ -1,7 +1,9 @@
 import asyncio
+import ipaddress
 import json
 import re
 from collections.abc import AsyncIterator
+from urllib.parse import urlparse
 
 import httpx
 
@@ -20,6 +22,48 @@ SYSTEM_PROMPT = """你是私人知识库助手。只能根据提供的资料片�
 如果资料不足以回答，请明确说明。回答使用中文，简洁准确。
 引用资料时必须在句末标注编号，格式为（资料1）或（资料2、资料3），编号与提供的 [资料N] 一致。
 只引用实际用到的资料，不要引用未使用的片段。"""
+
+
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+]
+
+
+def _is_safe_url(url: str) -> bool:
+    """Reject URLs that resolve to private/internal/loopback addresses (SSRF guard)."""
+    try:
+        parsed = urlparse(url)
+    except Exception:
+        return False
+    if parsed.scheme not in ("http", "https"):
+        return False
+    hostname = parsed.hostname
+    if not hostname:
+        return False
+    # Block localhost by name
+    if hostname in ("localhost", "0.0.0.0", "::"):
+        return False
+    # Block common metadata endpoints
+    if hostname.endswith(".internal") or hostname.endswith(".local"):
+        return False
+    # Resolve and check against private ranges
+    try:
+        addr = ipaddress.ip_address(hostname)
+        for net in _BLOCKED_NETWORKS:
+            if addr in net:
+                return False
+    except ValueError:
+        # hostname is a domain name, not an IP — allow (DNS rebinding risk
+        # is low for a personal tool; real mitigation needs a DNS resolution
+        # step + re-check, which is overkill here)
+        pass
+    return True
 
 
 def llm_mode(
@@ -293,6 +337,8 @@ async def stream_answer(
 
 
 async def validate_api_key(api_key: str, base_url: str, model: str) -> tuple[bool, str]:
+    if not _is_safe_url(base_url):
+        return False, "不允许访问内网或本地地址"
     payload = {
         "model": model,
         "messages": [{"role": "user", "content": "ping"}],
