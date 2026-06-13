@@ -1264,6 +1264,24 @@ function updateRetrievalNotice(info) {
   }
 }
 
+let startupBannerEl = null;
+
+function showStartupBanner() {
+  if (startupBannerEl) return;
+  startupBannerEl = document.createElement("div");
+  startupBannerEl.className = "startup-banner";
+  startupBannerEl.innerHTML = '<span class="startup-spinner"></span> 系统正在启动，首次加载需要 10-30 秒…';
+  const stage = document.querySelector(".chat-stage");
+  if (stage) stage.prepend(startupBannerEl);
+}
+
+function hideStartupBanner() {
+  if (startupBannerEl) {
+    startupBannerEl.remove();
+    startupBannerEl = null;
+  }
+}
+
 function updateModeUI() {
   const info = state.modeInfo;
   if (!info) return;
@@ -1314,10 +1332,16 @@ function updateModeUI() {
   updateRetrievalNotice(info);
 
   if (info.startup_ready === false) {
-    chatInput.placeholder = "系统正在加载嵌入模型，请稍候再提问或上传…";
+    chatInput.placeholder = "系统正在启动，请稍候…";
+    chatInput.disabled = true;
+    composerSendBtn.disabled = true;
     if (uploadOpenBtn) uploadOpenBtn.disabled = true;
-  } else if (uploadOpenBtn) {
-    uploadOpenBtn.disabled = false;
+    showStartupBanner();
+  } else {
+    chatInput.disabled = false;
+    composerSendBtn.disabled = false;
+    if (uploadOpenBtn) uploadOpenBtn.disabled = false;
+    hideStartupBanner();
   }
 
   const canPreview = info.features?.retrieve_preview !== false;
@@ -1602,11 +1626,7 @@ function maybeShowWelcome() {
     localStorage.setItem(WELCOME_SEEN_KEY, "1");
     return;
   }
-  if (!state.modeInfo?.demo_available && state.modeInfo?.tier === "full") {
-    localStorage.setItem(WELCOME_SEEN_KEY, "1");
-    return;
-  }
-  welcomeDialog.showModal();
+  localStorage.setItem(WELCOME_SEEN_KEY, "1");
 }
 
 async function loadWorkspaces() {
@@ -2308,7 +2328,7 @@ initBrandSettings();
       await setupDemoExperience();
     }
   } catch (err) {
-    pushMessage("bot", `初始化失败: ${err.message}`);
+    pushMessage("bot", `系统启动失败：${err.message}\n\n请刷新页面重试。如果问题持续，可能是服务正在冷启动，请等待 30 秒后再次刷新。`);
     renderChatLog();
   }
 })();

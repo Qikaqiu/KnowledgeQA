@@ -920,6 +920,34 @@ body {
   font-weight: 600;
 }
 
+.startup-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  background: rgba(59, 111, 217, 0.08);
+  border: 1px solid rgba(59, 111, 217, 0.2);
+  color: var(--accent-blue);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+.startup-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(59, 111, 217, 0.2);
+  border-top-color: var(--accent-blue);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 .message.user {
   margin-left: auto;
   padding: 12px 16px;
