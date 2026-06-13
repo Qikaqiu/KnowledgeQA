@@ -1626,7 +1626,7 @@ body {
 }
 
 .desktop-only {
-  display: flex;
+  display: block;
 }
 
 @media (max-width: 720px) {
