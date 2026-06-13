@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import BASE_DIR, DATA_DIR, DEMO_MAX_CHARS, UPLOAD_DIR
 from app.config import (
+    ALLOWED_ORIGINS,
     CHUNK_OVERLAP,
     CHUNK_SIZE,
     MIN_RELEVANCE_SCORE,
@@ -67,12 +68,13 @@ def _resolve_document_ids(document_id: str | None, document_ids: list[str] | Non
 
 app = FastAPI(title="私人知识问答库", version="0.1.0")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+if ALLOWED_ORIGINS:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=ALLOWED_ORIGINS,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 STATIC_DIR = BASE_DIR / "static"
 

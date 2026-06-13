@@ -1,7 +1,10 @@
 import hashlib
 import json
 import re
+import threading
 from pathlib import Path
+
+_doc_meta_lock = threading.Lock()
 
 import chromadb
 from chromadb.config import Settings
@@ -266,6 +269,9 @@ class VectorStore:
     kwargs: dict = {"include": ["documents", "metadatas"]}
     if where:
       kwargs["where"] = where
+    total = collection.count()
+    if total > 2000:
+      kwargs["limit"] = 2000
     result = collection.get(**kwargs)
 
     hits: list[dict] = []
@@ -340,35 +346,38 @@ def save_documents(workspace_id: str, docs: list[dict]) -> None:
 
 
 def add_document_meta(workspace_id: str, meta: dict) -> None:
-  docs = load_documents(workspace_id)
-  docs.append(meta)
-  save_documents(workspace_id, docs)
+  with _doc_meta_lock:
+    docs = load_documents(workspace_id)
+    docs.append(meta)
+    save_documents(workspace_id, docs)
 
 
 def update_document_meta(workspace_id: str, document_id: str, patch: dict) -> dict | None:
-  docs = load_documents(workspace_id)
-  updated = None
-  for doc in docs:
-    if doc["id"] == document_id:
-      doc.update(patch)
-      updated = doc
-      break
-  if updated:
-    save_documents(workspace_id, docs)
-  return updated
+  with _doc_meta_lock:
+    docs = load_documents(workspace_id)
+    updated = None
+    for doc in docs:
+      if doc["id"] == document_id:
+        doc.update(patch)
+        updated = doc
+        break
+    if updated:
+      save_documents(workspace_id, docs)
+    return updated
 
 
 def remove_document_meta(workspace_id: str, document_id: str) -> dict | None:
-  docs = load_documents(workspace_id)
-  kept: list[dict] = []
-  removed = None
-  for doc in docs:
-    if doc["id"] == document_id:
-      removed = doc
-    else:
-      kept.append(doc)
-  save_documents(workspace_id, kept)
-  return removed
+  with _doc_meta_lock:
+    docs = load_documents(workspace_id)
+    kept: list[dict] = []
+    removed = None
+    for doc in docs:
+      if doc["id"] == document_id:
+        removed = doc
+      else:
+        kept.append(doc)
+    save_documents(workspace_id, kept)
+    return removed
 
 
 def file_hash(content: bytes) -> str:

@@ -235,10 +235,13 @@ async def stream_openai(
                 data = line[6:].strip()
                 if data == "[DONE]":
                     break
-                chunk = json.loads(data)
-                delta = chunk["choices"][0]["delta"].get("content")
-                if delta:
-                    yield delta
+                try:
+                    chunk = json.loads(data)
+                    delta = chunk["choices"][0]["delta"].get("content")
+                    if delta:
+                        yield delta
+                except (json.JSONDecodeError, KeyError, IndexError, TypeError):
+                    continue
 
 
 async def stream_ollama(

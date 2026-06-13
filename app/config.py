@@ -46,6 +46,7 @@ DEMO_MIN_RELEVANCE_SCORE = 0.28
 KEYWORD_MIN_RELEVANCE_SCORE = 0.15
 DEMO_KEYWORD_MIN_RELEVANCE_SCORE = 0.10
 INGEST_ENABLE_SUMMARY = True
+ALLOWED_ORIGINS: list[str] = []
 
 
 def reload_config() -> None:
@@ -56,6 +57,7 @@ def reload_config() -> None:
     global EMBEDDING_QUERY_INSTRUCTION, KEYWORD_EMBED_DIM, SKIP_DEMO_SEED
     global KEYWORD_MIN_RELEVANCE_SCORE, DEMO_KEYWORD_MIN_RELEVANCE_SCORE
     global ALLOW_ENV_KEY_WRITE, USE_SERVER_API_KEY, INGEST_ENABLE_SUMMARY
+    global ALLOWED_ORIGINS
 
     load_dotenv(ENV_FILE, override=True)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
@@ -103,6 +105,8 @@ def reload_config() -> None:
     DEMO_KEYWORD_MIN_RELEVANCE_SCORE = float(
         os.getenv("DEMO_KEYWORD_MIN_RELEVANCE_SCORE", "0.10")
     )
+    raw_origins = os.getenv("ALLOWED_ORIGINS", "").strip()
+    ALLOWED_ORIGINS = [o.strip() for o in raw_origins.split(",") if o.strip()] if raw_origins else []
 
 
 reload_config()

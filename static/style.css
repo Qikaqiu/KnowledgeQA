@@ -15,8 +15,8 @@
   --danger: #c0392b;
   --shadow: 0 12px 40px rgba(15, 23, 42, 0.08);
   --shadow-sm: 0 4px 16px rgba(15, 23, 42, 0.06);
-  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
-  --sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --serif: Georgia, "Times New Roman", serif;
+  --sans: "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 * { box-sizing: border-box; }

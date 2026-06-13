@@ -1,9 +1,12 @@
 import json
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 from app.config import DATA_DIR, WORKSPACES_FILE
+
+_workspaces_lock = threading.Lock()
 
 
 def _now() -> str:
@@ -44,9 +47,10 @@ def create_workspace(name: str, description: str = "") -> dict:
         "created_at": _now(),
         "document_count": 0,
     }
-    workspaces = _load()
-    workspaces.append(ws)
-    _save(workspaces)
+    with _workspaces_lock:
+        workspaces = _load()
+        workspaces.append(ws)
+        _save(workspaces)
     return ws
 
 
@@ -56,56 +60,59 @@ def update_workspace(
     name: str | None = None,
     description: str | None = None,
 ) -> dict | None:
-    workspaces = _load()
-    for ws in workspaces:
-        if ws["id"] == workspace_id:
-            if name is not None:
-                ws["name"] = name.strip()
-            if description is not None:
-                ws["description"] = description.strip()
-            _save(workspaces)
-            return ws
+    with _workspaces_lock:
+        workspaces = _load()
+        for ws in workspaces:
+            if ws["id"] == workspace_id:
+                if name is not None:
+                    ws["name"] = name.strip()
+                if description is not None:
+                    ws["description"] = description.strip()
+                _save(workspaces)
+                return ws
     return None
 
 
 def delete_workspace(workspace_id: str) -> bool:
-    workspaces = _load()
-    if not any(ws["id"] == workspace_id for ws in workspaces):
-        return False
+    with _workspaces_lock:
+        workspaces = _load()
+        if not any(ws["id"] == workspace_id for ws in workspaces):
+            return False
 
-    from app.config import UPLOAD_DIR
-    from app.storage import vector_store as vs
-    import shutil
+        from app.config import UPLOAD_DIR
+        from app.storage import vector_store as vs
+        import shutil
 
-    for doc in vs.load_documents(workspace_id):
-        stored = doc.get("stored_path")
-        if stored:
-            path = Path(stored)
-            if path.exists():
-                path.unlink()
+        for doc in vs.load_documents(workspace_id):
+            stored = doc.get("stored_path")
+            if stored:
+                path = Path(stored)
+                if path.exists():
+                    path.unlink()
 
-    docs_dir = DATA_DIR / "documents" / workspace_id
-    if docs_dir.exists():
-        shutil.rmtree(docs_dir, ignore_errors=True)
+        docs_dir = DATA_DIR / "documents" / workspace_id
+        if docs_dir.exists():
+            shutil.rmtree(docs_dir, ignore_errors=True)
 
-    upload_dir = UPLOAD_DIR / workspace_id
-    if upload_dir.exists():
-        shutil.rmtree(upload_dir, ignore_errors=True)
+        upload_dir = UPLOAD_DIR / workspace_id
+        if upload_dir.exists():
+            shutil.rmtree(upload_dir, ignore_errors=True)
 
-    vs.vector_store.delete_workspace(workspace_id)
+        vs.vector_store.delete_workspace(workspace_id)
 
-    kept = [ws for ws in workspaces if ws["id"] != workspace_id]
-    _save(kept)
+        kept = [ws for ws in workspaces if ws["id"] != workspace_id]
+        _save(kept)
     return True
 
 
 def update_document_count(workspace_id: str, delta: int) -> None:
-    workspaces = _load()
-    for ws in workspaces:
-        if ws["id"] == workspace_id:
-            ws["document_count"] = max(0, ws.get("document_count", 0) + delta)
-            break
-    _save(workspaces)
+    with _workspaces_lock:
+        workspaces = _load()
+        for ws in workspaces:
+            if ws["id"] == workspace_id:
+                ws["document_count"] = max(0, ws.get("document_count", 0) + delta)
+                break
+        _save(workspaces)
 
 
 def ensure_seed_workspaces() -> None:
