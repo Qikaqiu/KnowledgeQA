@@ -18,12 +18,13 @@ MARKITDOWN_SUFFIXES = {
     ".csv",
     ".json",
     ".xml",
+    ".epub",
 }
 
 SUPPORTED_SUFFIXES = PLAIN_TEXT_SUFFIXES | MARKITDOWN_SUFFIXES
 
 SUPPORTED_FORMATS_LABEL = (
-    "TXT, MD, PDF, Word(.docx), PowerPoint(.pptx), Excel(.xlsx), HTML, CSV, JSON, XML"
+    "TXT, MD, PDF, Word(.docx), PowerPoint(.pptx), Excel(.xlsx), HTML, CSV, JSON, XML, EPUB"
 )
 
 

@@ -45,7 +45,7 @@ const fileInput = document.getElementById("file-input");
 
 const ACCEPTED_EXTENSIONS = [
   ".txt", ".md", ".markdown", ".pdf", ".doc", ".docx",
-  ".ppt", ".pptx", ".xls", ".xlsx", ".html", ".htm", ".csv", ".json", ".xml",
+  ".ppt", ".pptx", ".xls", ".xlsx", ".html", ".htm", ".csv", ".json", ".xml", ".epub",
 ];
 
 const uploadState = {
