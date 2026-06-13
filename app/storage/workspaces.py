@@ -119,9 +119,8 @@ def ensure_seed_workspaces() -> None:
     if _load():
         return
     defaults = [
-        ("ws_tech", "前沿科技", "AI 趋势、太空探索与技术动态"),
-        ("ws_product", "绿色未来", "新能源、气候变化与可持续发展"),
-        ("ws_policy", "科技人文", "AI 伦理、数字素养与社会责任"),
+        ("ws_tech", "李白诗集", "唐诗经典，输入名句即可检索全文"),
+        ("ws_product", "《活着》", "余华名著，人物关系与故事梗概"),
     ]
     workspaces = []
     for ws_id, name, desc in defaults:

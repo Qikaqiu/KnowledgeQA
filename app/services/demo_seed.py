@@ -20,9 +20,8 @@ def ensure_demo_workspaces() -> None:
     import json
 
     defaults = [
-        ("ws_tech", "前沿科技", "AI 趋势、太空探索与技术动态"),
-        ("ws_product", "绿色未来", "新能源、气候变化与可持续发展"),
-        ("ws_policy", "科技人文", "AI 伦理、数字素养与社会责任"),
+        ("ws_tech", "李白诗集", "唐诗经典，输入名句即可检索全文"),
+        ("ws_product", "《活着》", "余华名著，人物关系与故事梗概"),
     ]
     workspaces = list_workspaces()
     by_id = {ws["id"]: ws for ws in workspaces}
@@ -53,30 +52,30 @@ def ensure_demo_workspaces() -> None:
         )
 
 SAMPLE_ROOT = BASE_DIR / "sample_docs"
-DEMO_WORKSPACE_IDS = frozenset({"ws_tech", "ws_product", "ws_policy"})
+DEMO_WORKSPACE_IDS = frozenset({"ws_tech", "ws_product"})
 
 DEMO_CATALOG = {
     "default_workspace_id": "ws_tech",
     "prompts": [
         {
             "workspace_id": "ws_tech",
-            "label": "AI 趋势",
-            "question": "2025 年 AI 行业有哪些重要趋势？",
+            "label": "将进酒",
+            "question": "李白的将进酒全文是什么？",
         },
         {
             "workspace_id": "ws_tech",
-            "label": "太空探索",
-            "question": "阿尔忒弥斯计划的最新进展是什么？",
+            "label": "蜀道难",
+            "question": "蜀道难这首诗表达了什么情感？",
         },
         {
             "workspace_id": "ws_product",
-            "label": "新能源",
-            "question": "全球可再生能源发展现状如何？",
+            "label": "人物关系",
+            "question": "《活着》里福贵的家人都有谁？他们是什么关系？",
         },
         {
-            "workspace_id": "ws_policy",
-            "label": "AI 伦理",
-            "question": "AI 伦理面临哪些核心挑战？",
+            "workspace_id": "ws_product",
+            "label": "有庆之死",
+            "question": "有庆是怎么死的？",
         },
     ],
 }
