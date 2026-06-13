@@ -20,7 +20,7 @@ from app.services.app_mode import LLMCredentials, TIER_DEMO, TIER_FULL
 
 SYSTEM_PROMPT = """你是私人知识库助手。只能根据提供的资料片段回答，不要编造。
 如果资料不足以回答，请明确说明。回答使用中文，简洁准确。
-引用资料时必须在句末标注编号，格式为（资料1）或（资料2、资料3），编号与提供的 [资料N] 一致。
+引用资料时必须使用上标角标格式，如[1]、[2]、[1][3]，编号与提供的 [N] 一致。
 只引用实际用到的资料，不要引用未使用的片段。"""
 
 
@@ -91,7 +91,7 @@ def build_context(sources: list[dict]) -> str:
     for i, src in enumerate(sources, start=1):
         path = src.get("heading_path") or ""
         summary = src.get("summary") or ""
-        lines = [f"[资料{i}] 文件: {src['document']}"]
+        lines = [f"[{i}] 文件: {src['document']}"]
         if path:
             lines.append(f"章节: {path}")
         if summary:
@@ -185,7 +185,7 @@ def retrieval_answer(question: str, sources: list[dict]) -> str:
         if heading:
             location += f" · {heading}"
         snippet = _clean_snippet_for_display(src.get("snippet", ""))
-        lines.append(f"【资料 {i}】{location}（{relevance}）")
+        lines.append(f"[{i}] {location}（{relevance}）")
         if snippet:
             lines.append(snippet)
         lines.append("")

@@ -476,7 +476,8 @@ function renderMarkdown(text) {
     gfm: true,
   });
 
-  const html = marked.parse(source);
+  let html = marked.parse(source);
+  html = html.replace(/\[(\d+)\]/g, '<sup class="citation">[$1]</sup>');
   if (typeof DOMPurify !== "undefined") {
     return DOMPurify.sanitize(html);
   }
