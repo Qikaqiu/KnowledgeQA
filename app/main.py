@@ -5,6 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -68,6 +69,8 @@ def _resolve_document_ids(document_id: str | None, document_ids: list[str] | Non
 
 app = FastAPI(title="私人知识问答库", version="0.1.0")
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
 if ALLOWED_ORIGINS:
     app.add_middleware(
         CORSMiddleware,
@@ -77,6 +80,18 @@ if ALLOWED_ORIGINS:
     )
 
 STATIC_DIR = BASE_DIR / "static"
+
+
+@app.middleware("http")
+async def add_static_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    if path.startswith("/static/"):
+        if any(path.endswith(ext) for ext in (".js", ".css", ".png", ".svg", ".woff2")):
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        else:
+            response.headers["Cache-Control"] = "public, max-age=86400"
+    return response
 
 
 def _ensure_data_dir_writable() -> None:
