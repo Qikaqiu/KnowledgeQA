@@ -89,6 +89,37 @@ def _char_coverage(core: str, text: str) -> float:
     return matched / len(core)
 
 
+def _proximity_score(core: str, text: str, window: int = 150) -> float:
+    """检查查询中的关键中文词组是否在文本中相邻出现。"""
+    if len(core) < 2 or len(text) < len(core):
+        return 0.0
+    # 从 core 中提取所有 2+ 字的连续中文段
+    raw_phrases = re.findall(r"[\u4e00-\u9fff]{2,}", core)
+    if not raw_phrases:
+        return 0.0
+    # 如果只有一个长词组，拆成 2 字片段
+    phrases = []
+    for p in raw_phrases:
+        if len(p) <= 3:
+            phrases.append(p)
+        else:
+            phrases.extend([p[i:i+2] for i in range(0, len(p)-1, 2)])
+    if not phrases:
+        return 0.0
+    # 去重
+    phrases = list(dict.fromkeys(phrases))
+    best = 0.0
+    for i in range(len(text)):
+        chunk = text[i:i + window]
+        matched = sum(1 for p in phrases if p in chunk)
+        ratio = matched / len(phrases)
+        if ratio > best:
+            best = ratio
+            if best >= 1.0:
+                break
+    return best
+
+
 def keyword_overlap_score(query: str, text: str) -> float:
     """中文/英文关键词重合度，弥补纯向量模型对中文问法不敏感的问题。"""
     query = _normalize_query(query)
@@ -101,8 +132,9 @@ def keyword_overlap_score(query: str, text: str) -> float:
     core = _chinese_core(query)
     if len(core) >= 2:
         scores.append(_chinese_ngram_score(core, text))
-        scores.append(_char_coverage(core, text))
+        scores.append(_proximity_score(core, text))
 
+    # 从原始查询中提取连续中文词组（保留自然分词）
     for run in re.findall(r"[\u4e00-\u9fff]{2,}", query):
         run_core = "".join(ch for ch in run if ch not in _CHINESE_FILLER_CHARS)
         if len(run_core) >= 2:

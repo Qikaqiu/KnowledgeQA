@@ -37,8 +37,8 @@ USE_SERVER_API_KEY = False
 CHUNK_SIZE = 2000
 CHUNK_OVERLAP = 200
 MIN_SECTION_SIZE = 400
-RECALL_TOP_K = 12
-RERANK_TOP_K = 6
+RECALL_TOP_K = 30
+RERANK_TOP_K = 10
 TOP_K = RERANK_TOP_K
 MIN_RELEVANCE_SCORE = 0.38
 DEMO_MIN_RELEVANCE_SCORE = 0.28
@@ -59,6 +59,7 @@ def reload_config() -> None:
     global ALLOW_ENV_KEY_WRITE, USE_SERVER_API_KEY, INGEST_ENABLE_SUMMARY
     global ALLOWED_ORIGINS
     global CHUNK_SIZE, CHUNK_OVERLAP, MIN_SECTION_SIZE
+    global RECALL_TOP_K, RERANK_TOP_K
 
     load_dotenv(ENV_FILE, override=True)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
@@ -111,6 +112,8 @@ def reload_config() -> None:
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "2000"))
     CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
     MIN_SECTION_SIZE = int(os.getenv("MIN_SECTION_SIZE", "400"))
+    RECALL_TOP_K = int(os.getenv("RECALL_TOP_K", "30"))
+    RERANK_TOP_K = int(os.getenv("RERANK_TOP_K", "10"))
 
 
 reload_config()
