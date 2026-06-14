@@ -120,6 +120,51 @@ def _proximity_score(core: str, text: str, window: int = 150) -> float:
     return best
 
 
+def _entity_closeness(query: str, text: str, window: int = 150) -> float:
+    """检查查询中的关键实体是否在文本中相近位置出现。
+    
+    例如查询"有庆是怎么死的"，提取实体"有庆"和"死"，
+    检查它们是否在 window 字符内同时出现。
+    """
+    # 提取查询中的连续中文词组
+    runs = re.findall(r"[\u4e00-\u9fff]{2,}", query)
+    if not runs:
+        return 0.0
+    
+    # 对每个词组，去掉填充字后保留核心
+    key_phrases = []
+    for run in runs:
+        core = "".join(ch for ch in run if ch not in _CHINESE_FILLER_CHARS)
+        if len(core) >= 2:
+            key_phrases.append(core)
+    
+    # 额外提取查询中的单个关键字符（如"死"、"血"等）
+    all_chars = [ch for ch in query if "\u4e00" <= ch <= "\u9fff" and ch not in _CHINESE_FILLER_CHARS]
+    # 只保留出现次数少的稀有字符（排除"有"、"庆"等高频字符）
+    from collections import Counter
+    char_counts = Counter(all_chars)
+    rare_chars = [ch for ch, cnt in char_counts.items() if cnt == 1 and len(ch) == 1]
+    key_phrases.extend(rare_chars)
+    
+    if not key_phrases:
+        return 0.0
+    
+    # 去重但保持顺序
+    key_phrases = list(dict.fromkeys(key_phrases))
+    
+    # 检查是否所有关键实体都在某个窗口内出现
+    best = 0.0
+    for i in range(len(text)):
+        chunk = text[i:i + window]
+        matched = sum(1 for p in key_phrases if p in chunk)
+        ratio = matched / len(key_phrases)
+        if ratio > best:
+            best = ratio
+            if best >= 1.0:
+                break
+    return best
+
+
 def keyword_overlap_score(query: str, text: str) -> float:
     """中文/英文关键词重合度，弥补纯向量模型对中文问法不敏感的问题。"""
     query = _normalize_query(query)
@@ -132,7 +177,7 @@ def keyword_overlap_score(query: str, text: str) -> float:
     core = _chinese_core(query)
     if len(core) >= 2:
         scores.append(_chinese_ngram_score(core, text))
-        scores.append(_proximity_score(core, text))
+        scores.append(_entity_closeness(query, text))
 
     # 从原始查询中提取连续中文词组（保留自然分词）
     for run in re.findall(r"[\u4e00-\u9fff]{2,}", query):
