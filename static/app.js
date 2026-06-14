@@ -2336,5 +2336,11 @@ initBrandSettings();
   } catch (err) {
     pushMessage("bot", `系统启动失败：${err.message}\n\n请刷新页面重试。如果问题持续，可能是服务正在冷启动，请等待 30 秒后再次刷新。`);
     renderChatLog();
+  } finally {
+    const skeleton = document.getElementById("loading-skeleton");
+    if (skeleton) {
+      skeleton.style.opacity = "0";
+      setTimeout(() => skeleton.remove(), 300);
+    }
   }
 })();
