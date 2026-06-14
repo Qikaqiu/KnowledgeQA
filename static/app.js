@@ -4,12 +4,13 @@ const USER_LLM_STORAGE_KEY = "knowledgeqa_user_llm_v1";
 const SESSION_STORAGE_KEY = "knowledgeqa_session_v1";
 const WELCOME_SEEN_KEY = "knowledgeqa_welcome_seen_v1";
 const RETRIEVAL_NOTICE_DISMISSED_KEY = "knowledgeqa_retrieval_notice_dismissed_v1";
+const LAST_WORKSPACE_KEY = "knowledgeqa_last_workspace_v1";
 const DEFAULT_BRAND_ICON = "/static/assets/logo.png";
 const MAX_BRAND_ICON_BYTES = 256 * 1024;
 
 const state = {
   workspaces: [],
-  currentId: null,
+  currentId: localStorage.getItem(LAST_WORKSPACE_KEY) || null,
   sending: false,
   chatHistory: loadChatHistory(),
   documents: [],
@@ -1019,6 +1020,7 @@ async function removeWorkspace(workspaceId) {
     saveChatHistory();
     if (state.currentId === workspaceId) {
       state.currentId = null;
+      localStorage.removeItem(LAST_WORKSPACE_KEY);
     }
     await loadWorkspaces();
   } catch (err) {
@@ -1636,6 +1638,9 @@ async function loadWorkspaces() {
   if (!state.currentId || !currentExists) {
     state.currentId = state.workspaces.length ? state.workspaces[0].id : null;
   }
+  if (state.currentId) {
+    localStorage.setItem(LAST_WORKSPACE_KEY, state.currentId);
+  }
   renderWorkspaces();
   if (state.currentId) {
     await loadDocuments();
@@ -1664,6 +1669,7 @@ function updateHeader() {
 async function selectWorkspace(id) {
   if (id === state.currentId) return;
   state.currentId = id;
+  localStorage.setItem(LAST_WORKSPACE_KEY, id);
   clearDocumentScope();
   hideMentionPicker();
   renderWorkspaces();
