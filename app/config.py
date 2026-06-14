@@ -34,9 +34,9 @@ ALLOW_ENV_KEY_WRITE = True
 # 仅自托管时开启：所有访客共用服务端 OPENAI_API_KEY（公开发布请保持 false）
 USE_SERVER_API_KEY = False
 
-CHUNK_SIZE = 800
-CHUNK_OVERLAP = 120
-MIN_SECTION_SIZE = 200
+CHUNK_SIZE = 2000
+CHUNK_OVERLAP = 200
+MIN_SECTION_SIZE = 400
 RECALL_TOP_K = 12
 RERANK_TOP_K = 6
 TOP_K = RERANK_TOP_K
@@ -58,6 +58,7 @@ def reload_config() -> None:
     global KEYWORD_MIN_RELEVANCE_SCORE, DEMO_KEYWORD_MIN_RELEVANCE_SCORE
     global ALLOW_ENV_KEY_WRITE, USE_SERVER_API_KEY, INGEST_ENABLE_SUMMARY
     global ALLOWED_ORIGINS
+    global CHUNK_SIZE, CHUNK_OVERLAP, MIN_SECTION_SIZE
 
     load_dotenv(ENV_FILE, override=True)
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
@@ -107,6 +108,9 @@ def reload_config() -> None:
     )
     raw_origins = os.getenv("ALLOWED_ORIGINS", "").strip()
     ALLOWED_ORIGINS = [o.strip() for o in raw_origins.split(",") if o.strip()] if raw_origins else []
+    CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "2000"))
+    CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "200"))
+    MIN_SECTION_SIZE = int(os.getenv("MIN_SECTION_SIZE", "400"))
 
 
 reload_config()
