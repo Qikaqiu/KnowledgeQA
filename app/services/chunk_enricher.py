@@ -28,9 +28,9 @@ HEADING_PARSE = re.compile(r"^(#{1,6})\s+(.+)$")
 def build_embed_text(body: str, heading_path: str = "", summary: str = "") -> str:
     parts: list[str] = []
     if heading_path:
-        parts.append(f"章节: {heading_path}")
+        parts.append(f"[上下文: {heading_path}]")
     if summary:
-        parts.append(f"摘要: {summary}")
+        parts.append(f"[摘要: {summary}]")
     parts.append(body)
     return "\n".join(parts)
 

@@ -8,6 +8,7 @@ import aiofiles
 
 from app.config import UPLOAD_DIR
 from app.services.chunk_enricher import enrich_chunks
+from app.services.doc_classifier import detect_doc_type
 from app.services.document_parser import parse_file
 from app.services.embedder import embed_texts
 from app.storage import vector_store as vs
@@ -37,12 +38,13 @@ async def _save_upload_file(
 
 async def _process_document(
     workspace_id: str, document_id: str, filename: str, content: bytes
-) -> int:
+) -> tuple[int, str]:
     text = await asyncio.to_thread(parse_file, filename, content)
     if not text.strip():
         raise ValueError("文件中没有可提取的文本内容")
 
-    chunk_records = vs.vector_store.build_chunk_records(text)
+    doc_type = detect_doc_type(text, filename)
+    chunk_records = vs.vector_store.build_chunk_records(text, doc_type)
     if not chunk_records:
         raise ValueError("文件中没有可提取的文本内容")
 
@@ -50,9 +52,10 @@ async def _process_document(
     embeddings = await asyncio.to_thread(
         embed_texts, [record["embed_text"] for record in chunk_records]
     )
-    return vs.vector_store.add_document(
-        workspace_id, document_id, filename, chunk_records, embeddings
+    count = vs.vector_store.add_document(
+        workspace_id, document_id, filename, chunk_records, embeddings, doc_type
     )
+    return count, doc_type
 
 
 async def _finish_ingest_worker(
@@ -60,14 +63,14 @@ async def _finish_ingest_worker(
 ) -> None:
     async with _ingest_lock:
         try:
-            chunk_count = await asyncio.wait_for(
+            chunk_count, doc_type = await asyncio.wait_for(
                 _process_document(workspace_id, document_id, filename, content),
                 timeout=INGEST_TIMEOUT_SECONDS,
             )
             vs.update_document_meta(
                 workspace_id,
                 document_id,
-                {"status": "ready", "chunk_count": chunk_count, "error_message": ""},
+                {"status": "ready", "chunk_count": chunk_count, "doc_type": doc_type, "error_message": ""},
             )
         except Exception as exc:
             logger.exception("Background ingest failed for %s/%s", workspace_id, document_id)
@@ -115,7 +118,7 @@ async def ingest_file_sync(workspace_id: str, filename: str, content: bytes) -> 
     document_id = uuid.uuid4().hex[:12]
     file_path = await _save_upload_file(workspace_id, document_id, filename, content)
     async with _ingest_lock:
-        chunk_count = await _process_document(workspace_id, document_id, filename, content)
+        chunk_count, doc_type = await _process_document(workspace_id, document_id, filename, content)
 
     meta = {
         "id": document_id,
@@ -123,6 +126,7 @@ async def ingest_file_sync(workspace_id: str, filename: str, content: bytes) -> 
         "size": len(content),
         "uploaded_at": _now(),
         "chunk_count": chunk_count,
+        "doc_type": doc_type,
         "stored_path": str(file_path),
         "hash": vs.file_hash(content),
         "status": "ready",

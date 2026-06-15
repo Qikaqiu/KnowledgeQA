@@ -11,6 +11,7 @@ from app.config import (
     EMBEDDING_QUERY_INSTRUCTION,
 )
 from app.services.chunk_enricher import enrich_chunks
+from app.services.doc_classifier import detect_doc_type
 from app.services.document_parser import parse_file
 from app.services.embedder import clear_embedder_cache, embed_texts
 from app.storage import vector_store as vs
@@ -36,7 +37,8 @@ async def _reindex_document(workspace_id: str, doc: dict) -> None:
     if not text.strip():
         return
 
-    chunk_records = vs.vector_store.build_chunk_records(text)
+    doc_type = detect_doc_type(text, doc["filename"])
+    chunk_records = vs.vector_store.build_chunk_records(text, doc_type)
     if not chunk_records:
         return
 
@@ -50,6 +52,7 @@ async def _reindex_document(workspace_id: str, doc: dict) -> None:
         doc["filename"],
         chunk_records,
         embeddings,
+        doc_type,
     )
 
 

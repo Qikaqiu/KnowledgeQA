@@ -13,6 +13,13 @@ from app.config import CHROMA_DIR, CHUNK_OVERLAP, CHUNK_SIZE, MIN_SECTION_SIZE, 
 
 HEADING_PARSE = re.compile(r"^(#{1,6})\s+(.+)$")
 
+CHUNK_PROFILES = {
+    "novel":  {"chunk_size": 2500, "overlap": 400, "min_section": 300},
+    "paper":  {"chunk_size": 1500, "overlap": 200, "min_section": 200},
+    "manual": {"chunk_size": CHUNK_SIZE, "overlap": CHUNK_OVERLAP, "min_section": MIN_SECTION_SIZE},
+    "short":  {"chunk_size": 999999, "overlap": 0, "min_section": 0},
+}
+
 
 def _split_by_headings_with_paths(text: str) -> list[dict]:
   lines = text.split("\n")
@@ -122,15 +129,20 @@ class VectorStore:
     )
 
   @staticmethod
-  def build_chunk_records(text: str) -> list[dict]:
+  def build_chunk_records(text: str, doc_type: str = "manual") -> list[dict]:
     text = text.replace("\r\n", "\n").strip()
     if not text:
       return []
 
-    sections = _merge_small_sections(_split_by_headings_with_paths(text), MIN_SECTION_SIZE)
+    profile = CHUNK_PROFILES.get(doc_type, CHUNK_PROFILES["manual"])
+    chunk_size = profile["chunk_size"]
+    overlap = profile["overlap"]
+    min_section = profile["min_section"]
+
+    sections = _merge_small_sections(_split_by_headings_with_paths(text), min_section)
     records: list[dict] = []
     for section in sections:
-      for part in _split_section_by_size(section, CHUNK_SIZE, CHUNK_OVERLAP):
+      for part in _split_section_by_size(section, chunk_size, overlap):
         records.append(
           {
             "body": part["text"],
@@ -152,6 +164,7 @@ class VectorStore:
     filename: str,
     chunk_records: list[dict],
     embeddings: list[list[float]],
+    doc_type: str = "manual",
   ) -> int:
     if not chunk_records:
       return 0
@@ -168,6 +181,7 @@ class VectorStore:
         "chunk_index": i,
         "heading_path": record.get("heading_path", ""),
         "summary": record.get("summary", ""),
+        "doc_type": doc_type,
       }
       for i, record in enumerate(chunk_records)
     ]
