@@ -298,10 +298,27 @@ function saveChatHistory() {
   localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(state.chatHistory));
 }
 
+function createClientId() {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  if (globalThis.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, "0"));
+    return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10, 16).join("")}`;
+  }
+
+  return `session-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
 function getSessionId() {
   let id = localStorage.getItem(SESSION_STORAGE_KEY);
   if (!id) {
-    id = crypto.randomUUID();
+    id = createClientId();
     localStorage.setItem(SESSION_STORAGE_KEY, id);
   }
   return id;
@@ -1317,7 +1334,8 @@ function updateModeUI() {
     }
   }
 
-  const showQuota = !!quota && !info.has_user_api_key && info.tier === "demo";
+  const hasQuota = quota && typeof quota.remaining === "number";
+  const showQuota = hasQuota && info.tier === "demo";
   if (demoQuotaBar) {
     demoQuotaBar.hidden = !showQuota;
     demoQuotaBar.style.display = showQuota ? "" : "none";
@@ -1327,7 +1345,7 @@ function updateModeUI() {
     if (info.demo_blocked) {
       demoQuotaText.textContent = `今日演示次数已用完（${quota.daily_limit} 次/天），提问将无法调用 AI`;
     } else {
-      demoQuotaText.innerHTML = `您今日还可试用 <strong id="demo-quota-left">${quota.remaining}</strong> 次`;
+      demoQuotaText.textContent = `您今日还可试用 ${quota.remaining} 次`;
     }
   }
 
