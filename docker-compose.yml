@@ -1,0 +1,15 @@
+services:
+  knowledgeqa:
+    build: .
+    image: knowledgeqa:latest
+    container_name: knowledgeqa
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    env_file:
+      - .env
+    environment:
+      EMBEDDING_BACKEND: keyword
+      INGEST_ENABLE_SUMMARY: "false"
+    volumes:
+      - ./data:/app/data
