@@ -52,7 +52,7 @@ sample_docs/       # demo documents, auto-imported on first boot
 - **No pre-commit hooks** or CI workflows exist
 - `.env` is git-ignored; never commit real API keys
 - `data/` is git-ignored; must be mounted as persistent volume in production
-- Docker default: `EMBEDDING_BACKEND=keyword`, `INGEST_ENABLE_SUMMARY=false` (lightweight)
+- Docker default: `EMBEDDING_BACKEND=keyword`, `INGEST_ENABLE_SUMMARY=true`
 
 ## Three Run Modes
 
